@@ -43,6 +43,9 @@ exports[`buildModelTs > should return empty (with sdk) 1`] = `
 
 import { Nango } from '@nangohq/node';
 import type { AxiosInstance } from 'axios';
+import type { SyncConfig } from '../models/Sync.js';
+import type { RunnerFlags } from '../services/sync/run.utils.js';
+import type { DBTeam } from '@nangohq/types';
 type LogLevel = 'info' | 'debug' | 'error' | 'warn' | 'http' | 'verbose' | 'silly';
 type ParamEncoder = (value: any, defaultEncoder: (value: any) => any) => any;
 interface GenericFormData {
@@ -110,61 +113,70 @@ export interface ProxyConfiguration {
     responseType?: 'arraybuffer' | 'blob' | 'document' | 'json' | 'text' | 'stream';
     retryOn?: number[] | null;
 }
-declare enum AuthModes {
-    OAuth1 = "OAUTH1",
-    OAuth2 = "OAUTH2",
-    OAuth2CC = "OAUTH2_CC",
-    Basic = "BASIC",
-    ApiKey = "API_KEY",
-    AppStore = "APP_STORE",
-    App = "APP",
-    Custom = "CUSTOM",
-    None = "NONE",
-    TBA = "TBA"
+export interface AuthModes {
+    OAuth1: 'OAUTH1';
+    OAuth2: 'OAUTH2';
+    OAuth2CC: 'OAUTH2_CC';
+    Basic: 'BASIC';
+    ApiKey: 'API_KEY';
+    AppStore: 'APP_STORE';
+    Custom: 'CUSTOM';
+    App: 'APP';
+    None: 'NONE';
+    TBA: 'TBA';
+    Tableau: 'TABLEAU';
 }
+export type AuthModeType = AuthModes[keyof AuthModes];
 interface OAuth1Token {
     oAuthToken: string;
     oAuthTokenSecret: string;
 }
 interface AppCredentials {
-    type: AuthModes.App;
+    type: AuthModes['App'];
     access_token: string;
     expires_at?: Date | undefined;
     raw: Record<string, any>;
 }
 interface AppStoreCredentials {
-    type?: AuthModes.AppStore;
+    type?: AuthModes['AppStore'];
     access_token: string;
     expires_at?: Date | undefined;
     raw: Record<string, any>;
     private_key: string;
 }
 interface BasicApiCredentials {
-    type: AuthModes.Basic;
+    type: AuthModes['Basic'];
     username: string;
     password: string;
 }
 interface ApiKeyCredentials {
-    type: AuthModes.ApiKey;
+    type: AuthModes['ApiKey'];
     apiKey: string;
 }
 interface CredentialsCommon<T = Record<string, any>> {
-    type: AuthModes;
+    type: AuthModeType;
     raw: T;
 }
 interface OAuth2Credentials extends CredentialsCommon {
-    type: AuthModes.OAuth2;
+    type: AuthModes['OAuth2'];
     access_token: string;
     refresh_token?: string;
     expires_at?: Date | undefined;
 }
+interface OAuth2ClientCredentials extends CredentialsCommon {
+    type: AuthModes['OAuth2CC'];
+    token: string;
+    expires_at?: Date | undefined;
+    client_id: string;
+    client_secret: string;
+}
 interface OAuth1Credentials extends CredentialsCommon {
-    type: AuthModes.OAuth1;
+    type: AuthModes['OAuth1'];
     oauth_token: string;
     oauth_token_secret: string;
 }
 interface TbaCredentials {
-    type: AuthModes.TBA;
+    type: AuthModes['TBA'];
     token_id: string;
     token_secret: string;
     config_override: {
@@ -172,8 +184,19 @@ interface TbaCredentials {
         client_secret?: string;
     };
 }
+interface TableauCredentials extends CredentialsCommon {
+    type: AuthModes['Tableau'];
+    pat_name: string;
+    pat_secret: string;
+    content_url?: string;
+    token?: string;
+    expires_at?: Date | undefined;
+}
+interface CustomCredentials extends CredentialsCommon {
+    type: AuthModes['Custom'];
+}
 type UnauthCredentials = Record<string, never>;
-type AuthCredentials = OAuth2Credentials | OAuth1Credentials | BasicApiCredentials | ApiKeyCredentials | AppCredentials | AppStoreCredentials | UnauthCredentials | TbaCredentials;
+type AuthCredentials = OAuth2Credentials | OAuth2ClientCredentials | OAuth1Credentials | BasicApiCredentials | ApiKeyCredentials | AppCredentials | AppStoreCredentials | UnauthCredentials | TbaCredentials | TableauCredentials | CustomCredentials;
 type Metadata = Record<string, unknown>;
 interface MetadataChangeResponse {
     metadata: Metadata;
@@ -182,8 +205,8 @@ interface MetadataChangeResponse {
 }
 interface Connection {
     id?: number;
-    created_at?: Date;
-    updated_at?: Date;
+    created_at: Date;
+    updated_at: Date;
     provider_config_key: string;
     connection_id: string;
     connection_config: Record<string, string>;
@@ -214,15 +237,16 @@ export interface DryRunServiceInterface {
     run: (options: RunArgs, debug?: boolean) => Promise<string | void>;
 }
 export interface NangoProps {
+    scriptType: 'sync' | 'action' | 'webhook' | 'post-connection-script';
     host?: string;
     secretKey: string;
-    accountId?: number;
+    team?: Pick<DBTeam, 'id' | 'name'>;
     connectionId: string;
-    environmentId?: number;
+    environmentId: number;
     environmentName?: string;
-    activityLogId?: number | string | undefined;
+    activityLogId?: string | undefined;
     providerConfigKey: string;
-    provider?: string;
+    provider: string;
     lastSyncDate?: Date;
     syncId?: string | undefined;
     nangoConnectionId?: number;
@@ -241,6 +265,10 @@ export interface NangoProps {
     stubbedMetadata?: Metadata | undefined;
     abortSignal?: AbortSignal;
     dryRunService?: DryRunServiceInterface;
+    syncConfig: SyncConfig;
+    runnerFlags: RunnerFlags;
+    debug: boolean;
+    startedAt: Date;
 }
 export interface EnvironmentVariable {
     name: string;
@@ -251,15 +279,17 @@ export declare class NangoAction {
     protected nango: Nango;
     private attributes;
     protected persistApi: AxiosInstance;
-    activityLogId?: number | string | undefined;
+    activityLogId?: string | undefined;
     syncId?: string;
     nangoConnectionId?: number;
-    environmentId?: number;
+    environmentId: number;
     environmentName?: string;
     syncJobId?: number;
     dryRun?: boolean;
     abortSignal?: AbortSignal;
     dryRunService?: DryRunServiceInterface;
+    syncConfig?: SyncConfig;
+    runnerFlags: RunnerFlags;
     connectionId: string;
     providerConfigKey: string;
     provider?: string;
@@ -278,7 +308,7 @@ export declare class NangoAction {
     put<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     patch<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
     delete<T = any>(config: ProxyConfiguration): Promise<AxiosResponse<T>>;
-    getToken(): Promise<string | OAuth1Token | BasicApiCredentials | ApiKeyCredentials | AppCredentials | AppStoreCredentials | TbaCredentials>;
+    getToken(): Promise<string | OAuth1Token | OAuth2ClientCredentials | BasicApiCredentials | ApiKeyCredentials | AppCredentials | AppStoreCredentials | UnauthCredentials | CustomCredentials | TbaCredentials | TableauCredentials>;
     getConnection(providerConfigKeyOverride?: string, connectionIdOverride?: string): Promise<Connection>;
     setMetadata(metadata: Metadata): Promise<AxiosResponse<MetadataChangeResponse>>;
     updateMetadata(metadata: Metadata): Promise<AxiosResponse<MetadataChangeResponse>>;
@@ -296,13 +326,10 @@ export declare class NangoAction {
      * Log
      * @desc Log a message to the activity log which shows up in the Nango Dashboard
      * note that the last argument can be an object with a level property to specify the log level
-     * example: await nango.log('This is a log message', { level: 'error' })
-     * error = red
-     * warn = orange
-     * info = white
-     * debug = grey
-     * http = green
-     * silly = light green
+     * @example
+     * \`\`\`ts
+     * await nango.log('This is a log message', { level: 'error' })
+     * \`\`\`
      */
     log(message: any, options?: {
         level?: LogLevel;
@@ -316,7 +343,7 @@ export declare class NangoAction {
     getEnvironmentVariables(): Promise<EnvironmentVariable[] | null>;
     getFlowAttributes<A = object>(): A | null;
     paginate<T = any>(config: ProxyConfiguration): AsyncGenerator<T[], undefined, void>;
-    triggerAction<T = object>(providerConfigKey: string, connectionId: string, actionName: string, input?: unknown): Promise<T>;
+    triggerAction<In = unknown, Out = object>(providerConfigKey: string, connectionId: string, actionName: string, input?: In): Promise<Out>;
     triggerSync(providerConfigKey: string, connectionId: string, syncName: string, fullResync?: boolean): Promise<void | string>;
     private sendLogToPersist;
 }
@@ -344,6 +371,8 @@ export declare class NangoSync extends NangoAction {
     getMetadata<T = Metadata>(): Promise<T>;
 }
 /**
+ * @internal
+ *
  * This function will enable tracing on the SDK
  * It has been split from the actual code to avoid making the code too dirty and to easily enable/disable tracing if there is an issue with it
  */
@@ -385,7 +414,7 @@ export interface Base {
   obj: {  nested: string;};
   optional?: string;
   arrayLiteral: any[];
-  objectLiteral: object;
+  objectLiteral: Record<string, any>;
   any: any;
   float: number;
   bigint: bigint;
@@ -427,7 +456,6 @@ export type Anonymous_unauthenticated_action_inputoutputunion_input = true | 'he
 exports[`generate exports > json > should export to JSON 1`] = `
 "{
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$ref": "#/definitions/Test",
   "definitions": {
     "Test": {
       "type": "object",

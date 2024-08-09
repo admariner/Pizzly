@@ -1,6 +1,7 @@
-import type { GetOperation, SearchFilters, SearchMessages, SearchOperations } from '@nangohq/types';
+import type { GetOperation, PostInsights, SearchFilters, SearchMessages, SearchOperations } from '@nangohq/types';
 import { useEffect, useRef, useState } from 'react';
 import useSWR from 'swr';
+import type { SWRError } from '../utils/api';
 import { apiFetch, swrFetcher } from '../utils/api';
 import { slidePeriod } from '../utils/logs';
 
@@ -78,7 +79,10 @@ export function useSearchOperations(env: string, body: SearchOperations['Body'],
 }
 
 export function useGetOperation(env: string, params: GetOperation['Params']) {
-    const { data, error, mutate } = useSWR<GetOperation['Success']>(`/api/v1/logs/operations/${params.operationId}?env=${env}`, swrFetcher);
+    const { data, error, mutate } = useSWR<GetOperation['Success'], SWRError<GetOperation['Errors']>>(
+        `/api/v1/logs/operations/${params.operationId}?env=${env}`,
+        swrFetcher
+    );
 
     const loading = !data && !error;
 
@@ -195,4 +199,21 @@ export function useSearchFilters(enabled: boolean, env: string, body: SearchFilt
     }
 
     return { data, error, loading, trigger };
+}
+
+export function usePostInsights(env: string, body: PostInsights['Body']) {
+    const { data, error, mutate } = useSWR<PostInsights['Success'], SWRError<PostInsights['Errors']>>(
+        [`/api/v1/logs/insights?env=${env}`, body],
+        ([url, body]) => swrFetcher(url, { method: 'POST', body: JSON.stringify(body) }),
+        { refreshInterval: 60 * 1000, revalidateIfStale: false, revalidateOnMount: true }
+    );
+
+    const loading = !data && !error;
+
+    return {
+        loading,
+        error: error?.json,
+        data: data?.data,
+        mutate
+    };
 }

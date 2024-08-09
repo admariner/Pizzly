@@ -35,7 +35,8 @@ describe('parse', () => {
                             track_deletes: false,
                             type: 'sync',
                             usedModels: ['GithubIssue'],
-                            webhookSubscriptions: []
+                            webhookSubscriptions: [],
+                            version: ''
                         }
                     ],
                     postConnectionScripts: [],
@@ -48,7 +49,8 @@ describe('parse', () => {
                             output: ['GithubIssue'],
                             scopes: [],
                             type: 'action',
-                            usedModels: ['GithubIssue', 'Anonymous_provider_action_createIssue_input']
+                            usedModels: ['GithubIssue', 'Anonymous_provider_action_createIssue_input'],
+                            version: ''
                         }
                     ]
                 }
@@ -63,6 +65,48 @@ describe('parse', () => {
                         name: 'Anonymous_provider_action_createIssue_input'
                     }
                 ]
+            ]),
+            yamlVersion: 'v2'
+        });
+    });
+
+    it('should handle recursive model through model', () => {
+        const v2: NangoYamlV2 = {
+            models: { Start: { ref: 'Middle' }, Middle: { ref: 'End' }, End: { ref: 'Start' } },
+            integrations: {
+                provider: {
+                    actions: { createIssue: { endpoint: '/test', output: 'Start' } }
+                }
+            }
+        };
+        const parser = new NangoYamlParserV2({ raw: v2, yaml: '' });
+        parser.parse();
+        expect(parser.errors).toStrictEqual([]);
+        expect(parser.parsed).toStrictEqual<NangoYamlParsed>({
+            integrations: [
+                {
+                    providerConfigKey: 'provider',
+                    syncs: [],
+                    postConnectionScripts: [],
+                    actions: [
+                        {
+                            description: '',
+                            input: null,
+                            endpoint: { POST: '/test' },
+                            name: 'createIssue',
+                            output: ['Start'],
+                            scopes: [],
+                            type: 'action',
+                            usedModels: ['Start', 'Middle', 'End'],
+                            version: ''
+                        }
+                    ]
+                }
+            ],
+            models: new Map([
+                ['End', { name: 'End', fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'Start' }] }],
+                ['Middle', { name: 'Middle', fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'End' }] }],
+                ['Start', { name: 'Start', fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'Middle' }] }]
             ]),
             yamlVersion: 'v2'
         });
@@ -97,7 +141,8 @@ describe('parse', () => {
                             track_deletes: false,
                             type: 'sync',
                             usedModels: ['Anonymous_provider_sync_top_output', 'Anonymous_provider_sync_top_input'],
-                            webhookSubscriptions: []
+                            webhookSubscriptions: [],
+                            version: ''
                         }
                     ],
                     postConnectionScripts: [],

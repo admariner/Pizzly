@@ -9,7 +9,7 @@ import { route as getOutputRoute } from '../routes/v1/tasks/taskId/getOutput.js'
 import { route as putTaskRoute } from '../routes/v1/tasks/putTaskId.js';
 import { route as postHeartbeatRoute } from '../routes/v1/tasks/taskId/postHeartbeat.js';
 import type { Result, Route } from '@nangohq/utils';
-import { Ok, Err, routeFetch, stringifyError, getLogger } from '@nangohq/utils';
+import { Ok, Err, routeFetch, getLogger, retryWithBackoff, httpRetryStrategy } from '@nangohq/utils';
 import type { Endpoint } from '@nangohq/types';
 import type {
     ClientError,
@@ -37,8 +37,12 @@ export class OrchestratorClient {
         this.baseUrl = baseUrl;
     }
 
-    private routeFetch<E extends Endpoint<any>>(route: Route<E>) {
-        return routeFetch(this.baseUrl, route);
+    private routeFetch<E extends Endpoint<any>>(
+        route: Route<E>
+    ): (props: { query?: E['Querystring']; body?: E['Body']; params?: E['Params'] }) => Promise<E['Reply']> {
+        return (props) => {
+            return retryWithBackoff(() => routeFetch(this.baseUrl, route)(props), { retry: httpRetryStrategy, numOfAttempts: 3, maxDelay: 50 });
+        };
     }
 
     public async immediate(props: ImmediateProps): Promise<Result<{ taskId: string }, ClientError>> {
@@ -54,8 +58,8 @@ export class OrchestratorClient {
         if ('error' in res) {
             return Err({
                 name: res.error.code,
-                message: res.error.message || `Error scheduling  immediate task`,
-                payload: props
+                message: res.error.message || `Error scheduling immediate task`,
+                payload: { ...props, response: res.error.payload as any }
             });
         } else {
             return Ok(res);
@@ -80,7 +84,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error creating recurring schedule`,
-                payload: { ...props, startsAt }
+                payload: { ...props, startsAt, response: res.error.payload as any }
             });
         } else {
             return Ok(res);
@@ -107,7 +111,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error setting schedule state`,
-                payload: { scheduleName, state }
+                payload: { scheduleName, state, response: res.error.payload as any }
             });
         } else {
             return Ok(undefined);
@@ -122,7 +126,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error updating schedule frequency`,
-                payload: { scheduleName, frequencyMs }
+                payload: { scheduleName, frequencyMs, response: res.error.payload as any }
             });
         } else {
             return Ok(undefined);
@@ -139,7 +143,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error creating recurring schedule`,
-                payload: props
+                payload: { ...props, response: res.error.payload as any }
             });
         } else {
             return Ok(undefined);
@@ -162,7 +166,7 @@ export class OrchestratorClient {
             return Err({
                 name: getOutput.error.code,
                 message: getOutput.error.message || `Error fetching task '${taskId}' output`,
-                payload: {}
+                payload: { response: getOutput.error.payload as any }
             });
         } else {
             switch (getOutput.state) {
@@ -261,7 +265,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error listing tasks`,
-                payload: body
+                payload: { ...body, response: res.error.payload as any }
             });
         } else {
             const tasks = res.flatMap((task) => {
@@ -284,7 +288,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error listing schedules`,
-                payload: { scheduleNames }
+                payload: { scheduleNames, response: res.error.payload as any }
             });
         } else {
             const schedules = res.flatMap((schedule) => {
@@ -319,7 +323,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error dequeueing tasks`,
-                payload: { groupKey, limit }
+                payload: { groupKey, limit, response: res.error.payload as any }
             });
         } else {
             const dequeuedTasks = res.flatMap((task) => {
@@ -342,7 +346,7 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error heartbeating task '${taskId}'`,
-                payload: { taskId }
+                payload: { taskId, response: res.error.payload as any }
             });
         } else {
             return Ok(undefined);
@@ -358,19 +362,24 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error succeeding task '${taskId}'`,
-                payload: { taskId, output }
+                payload: { taskId, output, response: res.error.payload as any }
             });
         } else {
             return validateTask(res).mapError((err) => ({
                 name: 'succeed_failed',
-                message: `Failed to mark task ${taskId} as succeeded: ${stringifyError(err)}`,
-                payload: { taskId, output }
+                message: `Failed to mark task ${taskId} as succeeded`,
+                payload: { taskId, output, err: err as any }
             }));
         }
     }
 
     public async failed({ taskId, error }: { taskId: string; error: Error }): Promise<Result<OrchestratorTask, ClientError>> {
-        const output = { name: error.name, message: error.message };
+        const output = {
+            name: error.name,
+            type: 'type' in error ? (error.type as string) : 'unknown_error',
+            message: error.message,
+            payload: 'payload' in error ? (error.payload as any) : null
+        };
         const res = await this.routeFetch(putTaskRoute)({
             params: { taskId },
             body: { output, state: 'FAILED' }
@@ -379,13 +388,13 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error failing task '${taskId}'`,
-                payload: { taskId, error: output }
+                payload: { taskId, error: output, response: res.error.payload as any }
             });
         } else {
             return validateTask(res).mapError((err) => ({
                 name: 'failed_failed',
-                message: `Failed to mark task ${taskId} as failed: ${stringifyError(err)}`,
-                payload: { taskId, error: output }
+                message: `Failed to mark task ${taskId} as failed`,
+                payload: { taskId, error: output, err: err as any }
             }));
         }
     }
@@ -399,13 +408,13 @@ export class OrchestratorClient {
             return Err({
                 name: res.error.code,
                 message: res.error.message || `Error cancelling task '${taskId}'`,
-                payload: { taskId, error: reason }
+                payload: { taskId, error: reason, response: res.error.payload as any }
             });
         } else {
             return validateTask(res).mapError((err) => ({
-                name: 'cacel_failed',
-                message: `Failed to mark task ${taskId} as cancelled: ${stringifyError(err)}`,
-                payload: { taskId, error: reason }
+                name: 'cancel_failed',
+                message: `Failed to mark task ${taskId} as cancelled`,
+                payload: { taskId, error: reason, err: err as any }
             }));
         }
     }

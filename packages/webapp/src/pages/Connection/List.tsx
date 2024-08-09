@@ -11,7 +11,7 @@ import IntegrationLogo from '../../components/ui/IntegrationLogo';
 import { ErrorCircle } from '../../components/ui/label/error-circle';
 import DashboardLayout from '../../layout/DashboardLayout';
 import { LeftNavBarItems } from '../../components/LeftNavBar';
-import CopyButton from '../../components/ui/button/CopyButton';
+import { CopyButton } from '../../components/ui/button/CopyButton';
 import { requestErrorToast } from '../../utils/api';
 import { MultiSelect } from '../../components/MultiSelect';
 import type { ConnectionList as Connection } from '@nangohq/server';
@@ -203,7 +203,7 @@ export default function ConnectionList() {
                             <div className="flex gap-4 items-center text-[12px] px-2 py-1 bg-active-gray border border-neutral-800 rounded-md">
                                 <div className="w-2/3">Connection IDs</div>
                                 <div className="w-1/3">Integration</div>
-                                <div className="w-20">Created</div>
+                                <div className="w-24">Created</div>
                             </div>
                             {filteredConnections.map(
                                 ({ id, connection_id: connectionId, provider, provider_config_key: providerConfigKey, created: creationDate, active_logs }) => (
@@ -219,7 +219,7 @@ export default function ConnectionList() {
                                         <div className="flex items-center w-2/3 gap-2 py-2 truncate">
                                             <span className="break-words break-all truncate">{connectionId}</span>
                                             {active_logs && <ErrorCircle />}
-                                            <CopyButton dark text={connectionId} />
+                                            <CopyButton text={connectionId} />
                                         </div>
                                         <div className="flex items-center w-1/3 gap-3">
                                             <div className="w-7">
@@ -227,7 +227,7 @@ export default function ConnectionList() {
                                             </div>
                                             <p className="break-words break-all">{providerConfigKey}</p>
                                         </div>
-                                        <div className="flex w-20">
+                                        <div className="flex w-24">
                                             <time dateTime={creationDate} title={creationDate}>
                                                 {formatDate(creationDate)}
                                             </time>

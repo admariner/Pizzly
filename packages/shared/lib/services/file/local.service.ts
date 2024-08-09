@@ -13,6 +13,18 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 class LocalFileService {
+    public readFile(rawFilePath: string) {
+        try {
+            const filePath = rawFilePath.replace('@', '');
+            const realPath = fs.realpathSync(filePath);
+            const fileContents = fs.readFileSync(realPath, 'utf8');
+
+            return fileContents;
+        } catch {
+            return null;
+        }
+    }
+
     public getIntegrationFile(syncName: string, providerConfigKey: string, setIntegrationPath?: string | null) {
         try {
             const filePath = setIntegrationPath ? `${setIntegrationPath}dist/${syncName}.${SYNC_FILE_EXTENSION}` : this.resolveIntegrationFile(syncName);
@@ -36,12 +48,10 @@ class LocalFileService {
     public putIntegrationFile(syncName: string, fileContents: string, distPrefix: boolean) {
         try {
             const realPath = fs.realpathSync(process.env['NANGO_INTEGRATIONS_FULL_PATH'] as string);
-            if (!fs.existsSync(`${realPath}${distPrefix ? '/dist' : ''}/${syncName}`)) {
-                if (distPrefix) {
-                    fs.mkdirSync(`${realPath}/dist`, { recursive: true });
-                }
-                fs.writeFileSync(`${realPath}${distPrefix ? '/dist' : ''}/${syncName}`, fileContents, 'utf8');
+            if (distPrefix) {
+                fs.mkdirSync(`${realPath}/dist`, { recursive: true });
             }
+            fs.writeFileSync(`${realPath}${distPrefix ? '/dist' : ''}/${syncName}`, fileContents, 'utf8');
 
             return true;
         } catch (error) {

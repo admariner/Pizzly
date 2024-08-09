@@ -9,10 +9,6 @@ export enum Types {
     AUTH_GET_ENV_BY_SECRET_KEY = 'nango.auth.getEnvBySecretKey',
     AUTH_PUBLIC_KEY = 'nango.auth.publicKey',
     AUTH_SESSION = 'nango.auth.session',
-    DB_POOL_ACQUISITION_DURATION = 'nango.db.pool.acquisition',
-    DB_POOL_FREE = 'nango.db.pool.free',
-    DB_POOL_USED = 'nango.db.pool.used',
-    DB_POOL_WAITING = 'nango.db.pool.waiting',
     GET_CONNECTION = 'nango.server.getConnection',
     JOBS_DELETE_SYNCS_DATA = 'nango.jobs.cron.deleteSyncsData',
     JOBS_DELETE_SYNCS_DATA_DELETES = 'nango.jobs.cron.deleteSyncsData.deletes',
@@ -23,6 +19,7 @@ export enum Types {
     PERSIST_RECORDS_COUNT = 'nango.persist.records.count',
     PERSIST_RECORDS_SIZE_IN_BYTES = 'nango.persist.records.sizeInBytes',
 
+    POST_CONNECTION_SCRIPT_EXECUTION = 'nango.jobs.postConnectionScriptExecution',
     POST_CONNECTION_SCRIPT_RUNTIME = 'nango.jobs.postConnectionScriptRuntime',
     POST_CONNECTION_SCRIPT_SUCCESS = 'nango.orch.postConnectionScript.success',
     POST_CONNECTION_SCRIPT_FAILURE = 'nango.orch.postConnectionScript.failure',
@@ -34,7 +31,12 @@ export enum Types {
     REFRESH_TOKENS = 'nango.server.cron.refreshTokens',
     REFRESH_TOKENS_FAILED = 'nango.server.cron.refreshTokens.failed',
     REFRESH_TOKENS_SUCCESS = 'nango.server.cron.refreshTokens.success',
+
     RUNNER_SDK = 'nango.runner.sdk',
+    RUNNER_INVALID_ACTION_INPUT = 'nango.runner.invalidActionInput',
+    RUNNER_INVALID_ACTION_OUTPUT = 'nango.runner.invalidActionOutput',
+    RUNNER_INVALID_SYNCS_RECORDS = 'nango.runner.invalidSyncsRecords',
+
     SYNC_EXECUTION = 'nango.jobs.syncExecution',
     SYNC_TRACK_RUNTIME = 'sync_script_track_runtime',
     SYNC_SUCCESS = 'nango.orch.sync.success',

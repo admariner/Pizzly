@@ -126,6 +126,7 @@ export class NangoYamlParserV2 extends NangoYamlParser {
                 sync_type: sync.sync_type === 'incremental' ? 'incremental' : 'full',
                 usedModels: Array.from(modelNames),
                 runs: sync.runs,
+                version: sync.version || '',
                 track_deletes: sync.track_deletes || false,
                 auto_start: sync.auto_start === false ? false : true,
                 input: modelInput?.name || null,
@@ -176,6 +177,7 @@ export class NangoYamlParserV2 extends NangoYamlParser {
                 name: actionName,
                 type: 'action',
                 description: (action.description || '').trim(),
+                version: action.version || '',
                 scopes: this.getScopes(action),
                 input: modelInput?.name || null,
                 output: modelOutput && modelOutput.length > 0 ? modelOutput.map((m) => m.name) : null,
@@ -210,7 +212,7 @@ export class NangoYamlParserV2 extends NangoYamlParser {
         }
 
         // Create anonymous model for validation
-        const parsed = this.modelsParser.parseFields({ fields: { input: rawInput }, parent: name });
+        const parsed = this.modelsParser.parseFields({ fields: { input: rawInput }, stack: new Set([name]) });
 
         const anon = `Anonymous_${integrationName.replace(/[^A-Za-z0-9_]/g, '')}_${type}_${name.replace(/[^A-Za-z0-9_]/g, '')}_input`;
         const anonModel: NangoModel = { name: anon, fields: parsed, isAnon: true };

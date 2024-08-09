@@ -1,13 +1,12 @@
 import type {
     Connection,
-    Environment,
     SyncResult,
     ErrorPayload,
     SyncType,
     ExternalWebhook,
     NangoSyncWebhookBody,
-    NangoSyncWebhookBodySuccess,
-    NangoSyncWebhookBodyError
+    NangoSyncWebhookBodyBase,
+    DBEnvironment
 } from '@nangohq/types';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc.js';
@@ -30,7 +29,7 @@ export const sendSync = async ({
     logCtx
 }: {
     connection: Connection | Pick<Connection, 'connection_id' | 'provider_config_key'>;
-    environment: Environment;
+    environment: DBEnvironment;
     webhookSettings: ExternalWebhook | null;
     syncName: string;
     model: string;
@@ -49,18 +48,18 @@ export const sendSync = async ({
         return;
     }
 
-    const body: NangoSyncWebhookBody = {
+    const bodyBase: NangoSyncWebhookBodyBase = {
         from: 'nango',
         type: 'sync',
         connectionId: connection.connection_id,
         providerConfigKey: connection.provider_config_key,
         syncName,
         model,
-        syncType: operation
+        // For backward compatibility reason we are sending the syncType as INITIAL instead of FULL
+        syncType: operation === 'INCREMENTAL' ? 'INCREMENTAL' : 'INITIAL'
     };
+    let finalBody: NangoSyncWebhookBody;
 
-    let successBody: NangoSyncWebhookBodySuccess = {} as NangoSyncWebhookBodySuccess;
-    let errorBody: NangoSyncWebhookBodyError = {} as NangoSyncWebhookBodyError;
     let endingMessage = '';
 
     if (success) {
@@ -73,8 +72,8 @@ export const sendSync = async ({
             return;
         }
 
-        successBody = {
-            ...body,
+        finalBody = {
+            ...bodyBase,
             success: true,
             responseResults: {
                 added: responseResults.added,
@@ -82,16 +81,16 @@ export const sendSync = async ({
                 deleted: 0
             },
             modifiedAfter: dayjs(now).toDate().toISOString(),
-            queryTimeStamp: operation !== 'INITIAL' ? (now as unknown as string) : null
+            queryTimeStamp: now as unknown as string // Deprecated
         };
 
         if (responseResults.deleted && responseResults.deleted > 0) {
-            successBody.responseResults.deleted = responseResults.deleted;
+            finalBody.responseResults.deleted = responseResults.deleted;
         }
         endingMessage = noChanges ? 'with no data changes as per your environment settings.' : 'with data changes.';
     } else {
-        errorBody = {
-            ...body,
+        finalBody = {
+            ...bodyBase,
             success: false,
             error: error,
             startedAt: dayjs(now).toDate().toISOString(),
@@ -106,7 +105,7 @@ export const sendSync = async ({
 
     await deliver({
         webhooks,
-        body: success ? successBody : errorBody,
+        body: finalBody,
         webhookType: 'sync',
         endingMessage: success ? endingMessage : '',
         environment,

@@ -1,14 +1,14 @@
 import type {
-    NangoAuthWebhookBody,
     NangoAuthWebhookBodySuccess,
     NangoAuthWebhookBodyError,
     ExternalWebhook,
     Connection,
-    Environment,
     WebhookTypes,
     AuthModeType,
     ErrorPayload,
-    AuthOperationType
+    AuthOperationType,
+    NangoAuthWebhookBodyBase,
+    DBEnvironment
 } from '@nangohq/types';
 import type { LogContext } from '@nangohq/logs';
 import { deliver, shouldSend } from './utils.js';
@@ -26,7 +26,7 @@ export const sendAuth = async ({
     logCtx
 }: {
     connection: Connection | Pick<Connection, 'connection_id' | 'provider_config_key'>;
-    environment: Environment;
+    environment: DBEnvironment;
     webhookSettings: ExternalWebhook | null;
     auth_mode: AuthModeType;
     success: boolean;
@@ -44,10 +44,10 @@ export const sendAuth = async ({
         return;
     }
 
-    let successBody: NangoAuthWebhookBodySuccess = {} as NangoAuthWebhookBodySuccess;
-    let errorBody: NangoAuthWebhookBodyError = {} as NangoAuthWebhookBodyError;
+    let successBody = {} as NangoAuthWebhookBodySuccess;
+    let errorBody = {} as NangoAuthWebhookBodyError;
 
-    const body: NangoAuthWebhookBody = {
+    const body: NangoAuthWebhookBodyBase = {
         from: 'nango',
         type: 'auth',
         connectionId: connection.connection_id,

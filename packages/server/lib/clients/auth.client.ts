@@ -4,7 +4,7 @@ import { BasicStrategy } from 'passport-http';
 import express from 'express';
 import session from 'express-session';
 import path from 'path';
-import { AUTH_ENABLED, isBasicAuthEnabled } from '@nangohq/utils';
+import { baseUrl, flagHasAuth, isBasicAuthEnabled } from '@nangohq/utils';
 import { database } from '@nangohq/database';
 import { dirname, userService } from '@nangohq/shared';
 import crypto from 'crypto';
@@ -32,7 +32,9 @@ export function setupAuth(app: express.Router) {
             store: sessionStore,
             name: 'nango_session',
             unset: 'destroy',
-            cookie: { maxAge: 30 * 24 * 60 * 60 * 1000, secure: false },
+            cookie: baseUrl.startsWith('https')
+                ? { maxAge: 7 * 24 * 60 * 60 * 1000, secure: true, path: '/', sameSite: 'none', httpOnly: true }
+                : { maxAge: 7 * 24 * 60 * 60 * 1000, secure: false, path: '/', httpOnly: true },
             rolling: true
         })
     );
@@ -40,35 +42,40 @@ export function setupAuth(app: express.Router) {
     app.use(passport.initialize());
     app.use(passport.session());
 
-    if (AUTH_ENABLED) {
+    if (flagHasAuth) {
         passport.use(
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises
             new LocalStrategy({ usernameField: 'email', passwordField: 'password' }, async function (
                 email: string,
                 password: string,
                 cb: (error: any, user?: Express.User | false, options?: any) => void
             ) {
                 if (!email) {
-                    return cb(null, false, { message: 'Email is required.' });
+                    cb(null, false, { message: 'Email is required.' });
+                    return;
                 }
                 // in the case of SSO, the password field is empty. Explicitly
                 // check for this case to avoid a database query.
                 if (!password) {
-                    return cb(null, false, { message: 'Password is required.' });
+                    cb(null, false, { message: 'Password is required.' });
+                    return;
                 }
-                const user = await userService.getUserByEmail(email);
 
-                if (user == null) {
-                    return cb(null, false, { message: 'Incorrect email or password.' });
+                const user = await userService.getUserByEmail(email);
+                if (!user) {
+                    cb(null, false, { message: 'Incorrect email or password.' });
+                    return;
                 }
 
                 const proposedHashedPassword = await util.promisify(crypto.pbkdf2)(password, user.salt, 310000, 32, 'sha256');
                 const actualHashedPassword = Buffer.from(user.hashed_password, 'base64');
 
                 if (proposedHashedPassword.length !== actualHashedPassword.length || !crypto.timingSafeEqual(actualHashedPassword, proposedHashedPassword)) {
-                    return cb(null, false, { message: 'Incorrect email or password.' });
+                    cb(null, false, { message: 'Incorrect email or password.' });
+                    return;
                 }
 
-                return cb(null, user);
+                cb(null, user);
             })
         );
     } else {
@@ -97,9 +104,9 @@ export function setupAuth(app: express.Router) {
         );
     }
 
-    passport.serializeUser(function (user: Express.User, cb) {
+    passport.serializeUser(function (user: any, cb) {
         process.nextTick(function () {
-            cb(null, { id: user.id, email: user.email, name: user.name });
+            cb(null, { id: user.id, email: user.email, name: user.name, account_id: user.account_id } as Express.User);
         });
     });
 

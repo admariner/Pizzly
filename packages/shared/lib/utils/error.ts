@@ -112,7 +112,7 @@ export class NangoError extends Error {
                 this.message = 'The API endpoint could not be found and returned a 404. Please ensure you have the endpoint specified and spelled correctly.';
                 break;
 
-            case 'fobidden':
+            case 'forbidden':
                 this.status = 403;
                 this.message = 'The API endpoint returned back a 403 error. Check the scopes requested to make sure proper access is requested to the API.';
                 break;
@@ -252,10 +252,17 @@ export class NangoError extends Error {
 
             case 'action_failure':
                 this.status = 400;
-                this.message = `Failed to perform the action. Please try again.`;
-                if (this.payload) {
-                    this.message += ` ${JSON.stringify(this.payload, null, 2)}`;
-                }
+                this.message = `Failed to perform the action`;
+                break;
+
+            case 'webhook_failure':
+                this.status = 400;
+                this.message = `Failed to perform the webhook`;
+                break;
+
+            case 'post_connection_failure':
+                this.status = 400;
+                this.message = `Failed to perform the post connection script`;
                 break;
 
             case 'missing_provider_template':
@@ -329,6 +336,11 @@ export class NangoError extends Error {
             case 'refresh_token_external_error':
                 this.status = 400;
                 this.message = `The external API returned an error when trying to refresh the access token. Please try again later.`;
+                break;
+
+            case 'request_token_external_error':
+                this.status = 400;
+                this.message = `The external API returned an error when trying to request for an access token. Please try again later.`;
                 if (this.payload) {
                     this.message += ` ${JSON.stringify(this.payload, null, 2)}`;
                 }
@@ -510,6 +522,10 @@ export class NangoError extends Error {
                 this.message = `The webhook script failed with an error: ${this.payload}`;
                 break;
 
+            case 'post_connection_script_failure':
+                this.message = `The post-connection script failed with an error: ${this.payload}`;
+                break;
+
             case 'pass_through_error':
                 this.status = 400;
                 this.message = `${this.payload}`;
@@ -576,10 +592,55 @@ export class NangoError extends Error {
                 this.message = `Your nango.yaml contains some errors`;
                 break;
 
+            case 'deploy_missing_json_schema_model':
+                this.status = 400;
+                this.message = String(this.payload);
+                break;
+
+            case 'invalid_action_input':
+                this.status = 400;
+                this.message = 'Failed to validate the input passed to the action';
+                break;
+
+            case 'invalid_action_output':
+                this.status = 400;
+                this.message = 'Failed to validate the output passed to the action';
+                break;
+
+            case 'invalid_sync_record':
+                this.status = 400;
+                this.message = 'Failed to validate a record in batchSave';
+                break;
+
+            case 'script_output_too_big':
+                this.status = 400;
+                this.message = 'Script output is too big';
+                break;
+
+            case 'sync_job_update_failure':
+                this.status = 500;
+                this.message = `The sync job results could not be updated: ${this.payload}`;
+                break;
+
+            case 'script_invalid_error':
+                this.status = 500;
+                this.message = `An invalid error of type: ${typeof this.payload}`;
+                break;
+
+            case 'script_http_error':
+                this.status = 500;
+                this.message = `An error occurred during an HTTP call`;
+                break;
+
+            case 'script_internal_error':
+                this.status = 500;
+                this.message = `An internal error occurred during the script execution`;
+                break;
+
             default:
                 this.status = 500;
                 this.type = 'unhandled_' + type;
-                this.message = `An unhandled error of type '${type}' with payload '${JSON.stringify(this.payload)}' has occured`;
+                this.message = `An unhandled error of type '${type}' with payload '${JSON.stringify(this.payload)}' has occurred`;
         }
     }
 
@@ -599,16 +660,27 @@ export const formatScriptError = (err: any, errorType: string, scriptName: strin
         }
     } else if (err.message) {
         errorMessage = err.message;
-    } else if (typeof err === 'object' && Object.keys(err as object).length > 0) {
+    } else if (err && typeof err === 'object' && Object.keys(err as object).length > 0) {
         errorMessage = stringifyError(err, { pretty: true, stack: true });
     } else {
         errorMessage = String(err);
     }
 
-    const content = `The script failed to execute for ${scriptName} with the following error: ${errorMessage}`;
+    const content = `Script for '${scriptName}' failed to execute with error: ${errorMessage}`;
 
     const status = err?.response?.status || 500;
     const error = new NangoError(errorType, content, status);
 
     return { success: false, error, response: null };
 };
+
+export function isNangoErrorAsJson(obj: unknown): obj is NangoError {
+    return Boolean(typeof obj === 'object' && obj && 'payload' in obj && 'type' in obj);
+}
+
+export function deserializeNangoError(err: unknown): NangoError | null {
+    if (isNangoErrorAsJson(err)) {
+        return new NangoError(err['type'], err.payload, err.status);
+    }
+    return null;
+}

@@ -2,6 +2,202 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.42.2] - 2024-07-26
+
+### Added
+
+- Refactor User Settings (#2513) by @bodinsamuel
+- *(integrations)* Add support for contentful (#2515) by @hassan254-prog
+- *(webhooks)* [nan-1432] add checkr webhook forwarding possibility (#2516) by @khaliqgant
+- Add start endpoint to runner (#2524) by @TBonnin
+- Invitation UI (#2520) by @bodinsamuel
+- *(cli)* [nan-1309] add .gitignore to ignore dist and .env file (#2527) by @khaliqgant
+- *(db)* Add index for invited_users (#2522) by @bodinsamuel
+- *(integrations)* Add support for gainsight-cc (#2531) by @hassan254-prog
+- *(integrations)* Add helpscout rate limiting (#2534) by @hassan254-prog
+- *(server)* Add CSP, cors (#2532) by @bodinsamuel
+- *(sdk)* [nan-1474] allow generics for input and output for triggerAction (#2542) by @khaliqgant
+- Expose env.js from backend to frontend (#2540) by @bodinsamuel
+- In product metrics (#2541) by @bodinsamuel
+- *(integration-template)* Add sharepoint fetch-file action (#2551) by @hassan254-prog
+- *(tableau-integrations)* Add support for tableau api (#2526) by @hassan254-prog
+- *(integrations)* [nan-1195] teams integration (#2550) by @khaliqgant
+
+### Changed
+
+- Dryrun should not depend on run.service (#2507) by @TBonnin
+- *(deps)* Manual upgrade (#2514) by @bodinsamuel
+
+### Fixed
+
+- Update sync frequency (#2518) by @TBonnin
+- *(xero-integration-template)* [nan-1438] xero updates to match the API better (#2519) by @khaliqgant
+- *(documentation)* [nan-1349] update docs (#2517) by @khaliqgant
+- *(cli)* [nan-1457] auto confirm for dry run (#2528) by @khaliqgant
+- *(logs)* Remove support for number (#2523) by @bodinsamuel
+- *(ui)* Feedback on profile/team/invitation (#2530) by @bodinsamuel
+- *(integration-templates)* Fix location of upload (#2529) by @khaliqgant
+- *(team)* Forbid to remove themselves, handle invitation with wrong account (#2533) by @bodinsamuel
+- *(integration-templates-xero)* Validate update-invoices correctly (#2536) by @khaliqgant
+- *(auth)* Handle invitation with managed auth (#2535) by @bodinsamuel
+- *(auth)* Correct email verification (#2537) by @bodinsamuel
+- *(auth)* Secure cookie and allow subdomains (#2538) by @bodinsamuel
+- *(team)* Update team/invitation wording (#2539) by @bodinsamuel
+- *(cors)* Allow public api to be reached from a frontend (#2543) by @bodinsamuel
+- *(csp)* Allow websockets (#2544) by @bodinsamuel
+- *(signup)* Correctly verify email when using invitation (#2548) by @bodinsamuel
+- *(ui)* Feedback on team/invitation (#2545) by @bodinsamuel
+- *(ui)* Various fix (#2552) by @bodinsamuel
+- *(ci)* Providers validation (#2546) by @bodinsamuel
+- *(sdk)* [nan-1474] type sdk and remove return coercion (#2553) by @khaliqgant
+
+## [v0.42.0] - 2024-07-16
+
+### Added
+
+- *(integrations)* Add support for the Canny API (#2499) by @keedyc
+- *(integration-templates)* Improve sharepoint templates (#2495) by @hassan254-prog
+- Refactor Team Settings (#2493) by @bodinsamuel
+
+### Changed
+
+- Remove deprecated get records (#2511) by @bodinsamuel
+
+### Fixed
+
+- *(proxy)* Allow empty body for POST, PUT, PATCH (#2506) by @TBonnin
+- *(datadog)* Enable tcp tracing (#2510) by @bodinsamuel
+- *(db)* Remove unused metrics, reduce pool size (#2509) by @bodinsamuel
+- *(runner)* Get random port safely (#2508) by @bodinsamuel
+- *(cli)* Handle Windows paths (#2312) (#2496) by @bburns
+- *(integration-templates)* Show the link only for the future upgrade not the current integration template (#2512) by @khaliqgant
+
+## [v0.41.1] - 2024-07-12
+
+### Added
+
+- *(internal-integration-templates)* [nan-1343] allow integration templates to be run from the repo (#2473) by @khaliqgant
+- *(integrations)* Add support for zoominfo (#2469) by @hassan254-prog
+- *(oauth2)* Add coros provider to list of clientProviders (#2476) by @hassan254-prog
+- *(integrations)* Add support for Coros (#2449) by @henrymgarrett
+- *(integrations)* Add support for listmonk (#2480) by @samuelandert
+- *(account)* Check password strength (#2483) by @bodinsamuel
+- *(integration-templates)* [nan-1350] internal template versioning process (#2491) by @khaliqgant
+- *(integration-templates)* Add luma integration template (#2490) by @hassan254-prog
+
+### Changed
+
+- Data validation (#2468) by @bodinsamuel
+- *(CLI)* Protect against sync model renaming destructive consequences (#2475) by @TBonnin
+- *(deps-dev)* Bump fast-loops from 1.1.3 to 1.1.4 (#2492) by @dependabot[bot]
+- *(scheduler)* Cleanup tasks and schedules (#2485) by @TBonnin
+
+### Fixed
+
+- *(ui)* Toggle was not in sync with actual state (#2472) by @bodinsamuel
+- *(integration-templates)* [nan-1328] remove auto start false (#2479) by @khaliqgant
+- Handle big payload across the stack (#2474) by @bodinsamuel
+- *(slack-notifications)* [nan-1164] add lock check for remove failing connection (#2482) by @khaliqgant
+- Slow connection page (#2481) by @TBonnin
+- *(validation)* Change default to false (#2487) by @bodinsamuel
+- *(auth)* Do not display refresh button if not possible (#2484) by @bodinsamuel
+- *(auth)* Stop leaking stack and credentials when erroring (#2489) by @bodinsamuel
+- *(types)* Correct Timestamps, move env and account (#2486) by @bodinsamuel
+- *(webapp)* [nan-1356] fix UI for syncs (#2498) by @khaliqgant
+- *(webapp)* [nan-1295] stable ordering of syncs and actions (#2497) by @khaliqgant
+- Token refresh locking logic (#2494) by @TBonnin
+- *(integration-templates)* [nan-1366] add .nango dir and fix path (#2500) by @khaliqgant
+- *(nango-yaml)* Disallow empty array (#2501) by @bodinsamuel
+- *(validation)* Cache ajv compilation (#2502) by @bodinsamuel
+- *(ui)* Reup Admin, fix input size (#2503) by @bodinsamuel
+- Retry strategy (#2505) by @TBonnin
+- *(nango-yaml)* Handle fields duplicated by extends (#2504) by @bodinsamuel
+
+## [v0.41.0] - 2024-07-05
+
+### Added
+
+- *(integration-templates)* [nan-1328] add xero templates (#2452) by @khaliqgant
+- *(integrations)* Add support for webflow (#2446) by @hassan254-prog
+- *(integrations)* Add support for luma (#2453) by @hassan254-prog
+- *(slack-notifications)* [nan-1148] slack notification UI polish (#2455) by @khaliqgant
+- Validate action output, support dryun (#2454) by @bodinsamuel
+- *(integrations)* Add support for garmin (#2445) by @hassan254-prog
+- *(integration-templates)* [nan-1328] update xero more after test (#2463) by @khaliqgant
+- Add kapa.ai (#2471) by @bodinsamuel
+- *(integrations)* Add support for klaviyo-OAuth (#2470) by @hassan254-prog
+- *(cli-reference)* [nan-1168] allow a user to reference a file to use for the input or metadata (#2464) by @khaliqgant
+- Validate sync records (#2457) by @bodinsamuel
+- *(integration-templates)* Add sharepoint integration templates (#2467) by @hassan254-prog
+
+### Changed
+
+- Reduce dequeue long polling timeout to 10s (#2459) by @TBonnin
+- *(CLI)* Force confirmation when deletedSyncs (#2440) by @TBonnin
+
+### Fixed
+
+- *(validation)* Do no throw if invalid json schema (#2447) by @bodinsamuel
+- *(webapp)* Fix spinner button (#2450) by @khaliqgant
+- *(unanet-integration-template)* [nan-1298] tweaks to the template (#2451) by @khaliqgant
+- *(nango-yaml)* Handle deep circular ref, correctly output recursive models (#2448) by @bodinsamuel
+- *(ui)* Syncs use table and correct button depending on sync_type (#2441) by @bodinsamuel
+- *(types)* Correct webhooks inheritance and exports  (#2458) by @bodinsamuel
+- *(integration-templates)* [nan-1327] add response_path (#2460) by @khaliqgant
+- *(slack-notifications)* [nan-1148] notification tweaks based on product conversation (#2461) by @khaliqgant
+- *(ui)* Truncate long strings (#2456) by @bodinsamuel
+- *(nango-yaml)* Object -> Record (#2466) by @bodinsamuel
+- *(cli)* [nan-1344] allow type imports (#2465) by @khaliqgant
+
+## [v0.40.10] - 2024-07-02
+
+### Fixed
+
+- *(node)* Correctly export Auth and Webhooks type (#2442) by @bodinsamuel
+- *(validation)* Use feature flag (#2444) by @bodinsamuel
+- Frequency when no quantity (#2443) by @TBonnin
+
+## [v0.40.9] - 2024-07-02
+
+### Fixed
+
+- *(integration-templates)* [nan-1298] unanet updates (#2438) by @khaliqgant
+- Pinning CLI dependencies (#2439) by @TBonnin
+- *(ui)* Integration table style + wording (#2435) by @bodinsamuel
+
+## [v0.40.8] - 2024-07-02
+
+### Added
+
+- *(integrations)* Add support for Oura  (#2417) by @henrymgarrett
+- *(integrations)* Add certn implementation and cleanup other integrations (#2418) by @khaliqgant
+
+### Changed
+
+- Remove temporal (#2403) by @TBonnin
+- Send metric when tasks change state (#2429) by @TBonnin
+- Cleaning up legacy records tables (#2432) by @TBonnin
+- RECORDS_DATABASE_URL defaults to main db (#2431) by @TBonnin
+
+### Fixed
+
+- *(sdk)* Handle internal issue when reaching persist (#2416) by @bodinsamuel
+- Schedule nextDueDate should be null when schedule is not running (#2420) by @TBonnin
+- *(tracing)* Various (#2413) by @bodinsamuel
+- *(slack-notifications)* [nan-1164] dedupe slack notifications (#2421) by @khaliqgant
+- *(webapp)* [nan-1164] fix connection count when filtering (#2423) by @khaliqgant
+- *(tba-integration)* [nan 1259] support netsuite tba authorization (#2425) by @khaliqgant
+- *(tracing)* Various fix (#2422) by @bodinsamuel
+- Support post connection script execution in jobs handler (#2427) by @TBonnin
+- Create processor for post connection scripts (#2428) by @TBonnin
+- Every 1 hour" in nango.yaml -> "every1h" in UI (#2430) by @TBonnin
+- /api/v1/sync is slow (#2424) by @TBonnin
+- *(pagination)* [nan-1193] fix pagination (#2434) by @khaliqgant
+- *(syncs)* Use JSON schema and validate action input (#2426) by @bodinsamuel
+- Missing syncs in connections page (#2437) by @TBonnin
+- *(ui)* Display code snippets more appropriately (#2436) by @bodinsamuel
+- *(slack-notifications)* [nan-1164] multiple notifications on refresh error (#2433) by @khaliqgant
+
 ## [v0.40.7] - 2024-06-27
 
 ### Added
@@ -744,7 +940,7 @@ All notable changes to this project will be documented in this file.
 - *(webapp)* Improve field values on refresh (#1782) by @hassan254-prog
 - *(db)* Add index for isSyncJobRunning (#1793) by @bodinsamuel
 - *(integrations)* Api support and integration template for zoho-mail (#1779) by @hassan254-prog
-- *(SecretInput)* Handle null optionalvalue gracefully (#1781) by @hassan254-prog
+- *(SecretInput)* Handle null optionalValue gracefully (#1781) by @hassan254-prog
 - *(webapp)* Improve input integration ID on edit (#1783) by @hassan254-prog
 
 ### Changed
@@ -1453,6 +1649,13 @@ All notable changes to this project will be documented in this file.
 - Update Zendesk Chat configuration file (#161) by @Frenchcooc
 - APIs using client_credentials as grant type (#165) by @Frenchcooc
 
+[v0.42.2]: https://github.com/NangoHQ/nango/compare/v0.42.0..v0.42.2
+[v0.42.0]: https://github.com/NangoHQ/nango/compare/v0.41.1..v0.42.0
+[v0.41.1]: https://github.com/NangoHQ/nango/compare/v0.41.0..v0.41.1
+[v0.41.0]: https://github.com/NangoHQ/nango/compare/v0.40.10..v0.41.0
+[v0.40.10]: https://github.com/NangoHQ/nango/compare/v0.40.9..v0.40.10
+[v0.40.9]: https://github.com/NangoHQ/nango/compare/v0.40.8..v0.40.9
+[v0.40.8]: https://github.com/NangoHQ/nango/compare/v0.40.7..v0.40.8
 [v0.40.7]: https://github.com/NangoHQ/nango/compare/v0.40.6..v0.40.7
 [v0.40.6]: https://github.com/NangoHQ/nango/compare/v0.40.5..v0.40.6
 [v0.40.5]: https://github.com/NangoHQ/nango/compare/v0.40.4..v0.40.5

@@ -1,11 +1,13 @@
 import { toast } from 'react-toastify';
 import { useSignout } from './user';
-import type { AuthModes, RunSyncCommand, PreBuiltFlow } from '../types';
+import type { RunSyncCommand, PreBuiltFlow } from '../types';
+import type { AuthModeType, PostSignup } from '@nangohq/types';
 
 export async function apiFetch(input: string | URL | Request, init?: RequestInit | undefined) {
     return await fetch(input, {
         ...init,
-        headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) }
+        headers: { 'Content-Type': 'application/json', ...(init?.headers || {}) },
+        credentials: 'include' // For cookies
     });
 }
 
@@ -14,11 +16,15 @@ export async function fetcher(...args: Parameters<typeof fetch>) {
     return response.json();
 }
 
+export interface SWRError<TError> {
+    json: TError;
+    status: number;
+}
 /**
  * Default SWR fetcher does not throw on HTTP error
  */
-export async function swrFetcher<TBody>(url: string): Promise<TBody> {
-    const res = await apiFetch(url);
+export async function swrFetcher<TBody>(url: string, req?: RequestInit | undefined): Promise<TBody> {
+    const res = await apiFetch(url, req);
 
     if (!res.ok) {
         throw { json: await res.json(), status: res.status };
@@ -46,11 +52,11 @@ export function useLogoutAPI() {
 }
 
 export function useSignupAPI() {
-    return async (name: string, email: string, password: string) => {
+    return async (body: PostSignup['Body']) => {
         try {
             const options = {
                 method: 'POST',
-                body: JSON.stringify({ name: name, email: email, password: password })
+                body: JSON.stringify(body)
             };
 
             return apiFetch('/api/v1/account/signup', options);
@@ -362,7 +368,7 @@ export function useCreateIntegrationAPI(env: string) {
 
     return async (
         provider: string,
-        authMode: AuthModes,
+        authMode: AuthModeType,
         providerConfigKey: string,
         clientId: string,
         clientSecret: string,
@@ -428,7 +434,7 @@ export function useEditIntegrationAPI(env: string) {
 
     return async (
         provider: string,
-        authMode: AuthModes,
+        authMode: AuthModeType,
         providerConfigKey: string,
         clientId: string,
         clientSecret: string,
@@ -615,7 +621,7 @@ export function useRequestPasswordResetAPI() {
     return async (email: string) => {
         try {
             const res = await apiFetch(`/api/v1/account/forgot-password`, {
-                method: 'PUT',
+                method: 'POST',
                 body: JSON.stringify({ email: email })
             });
 
@@ -703,28 +709,7 @@ export function useGetAccountAPI(env: string) {
 
     return async () => {
         try {
-            const res = await apiFetch(`/api/v1/account?env=${env}`);
-
-            if (res.status === 401) {
-                return signout();
-            }
-
-            return res;
-        } catch {
-            requestErrorToast();
-        }
-    };
-}
-
-export function useEditAccountNameAPI(env: string) {
-    const signout = useSignout();
-
-    return async (name: string) => {
-        try {
-            const res = await apiFetch(`/api/v1/account?env=${env}`, {
-                method: 'PUT',
-                body: JSON.stringify({ name })
-            });
+            const res = await apiFetch(`/api/v1/team?env=${env}`);
 
             if (res.status === 401) {
                 return signout();

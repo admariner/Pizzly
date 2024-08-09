@@ -8,17 +8,17 @@ export function getLogsUrl(
             [P in keyof SearchOperations['Body']]?: string | undefined;
         }>,
         'period'
-    > & { operationId?: string | null | number; env: string; day?: Date }
+    > & { operationId?: string | null | number; env: string; day?: Date | null }
 ): string {
     const usp = new URLSearchParams();
     for (const [key, val] of Object.entries(options)) {
         if (!val || key === 'env') {
             continue;
         }
-        if (key === 'day') {
-            const from = new Date();
+        if (key === 'day' && val) {
+            const from = new Date(val);
             from.setHours(0, 0);
-            const to = new Date();
+            const to = new Date(val);
             to.setHours(23, 59);
             usp.set('from', from.toISOString());
             usp.set('to', to.toISOString());

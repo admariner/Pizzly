@@ -3,7 +3,7 @@ import db, { schema, dbNamespace } from '@nangohq/database';
 import type { Sync, Job as SyncJob } from '../../models/Sync.js';
 import { SyncStatus } from '../../models/Sync.js';
 import type { Connection, NangoConnection } from '../../models/Connection.js';
-import type { ActiveLogIds, IncomingFlowConfig, SlimAction, SlimSync, SyncAndActionDifferences } from '@nangohq/types';
+import type { ActiveLogIds, IncomingFlowConfig, SlimAction, SlimSync, SyncAndActionDifferences, SyncTypeLiteral } from '@nangohq/types';
 import {
     getActiveCustomSyncConfigsByEnvironmentId,
     getSyncConfigsByProviderConfigKey,
@@ -21,6 +21,7 @@ const TABLE = dbNamespace + 'syncs';
 const SYNC_JOB_TABLE = dbNamespace + 'sync_jobs';
 const SYNC_CONFIG_TABLE = dbNamespace + 'sync_configs';
 const ACTIVE_LOG_TABLE = dbNamespace + 'active_logs';
+const CONNECTIONS_TABLE = dbNamespace + 'connections';
 
 /**
  * Sync Service
@@ -54,7 +55,7 @@ export const createSync = async (nangoConnectionId: number, name: string): Promi
         return null;
     }
 
-    const sync: Sync = {
+    const sync: Omit<Sync, 'created_at' | 'updated_at'> = {
         id: uuidv4(),
         nango_connection_id: nangoConnectionId,
         name,
@@ -160,20 +161,19 @@ export const getSyncByIdAndName = async (nangoConnectionId: number, name: string
 export const getSyncs = async (
     nangoConnection: Connection,
     orchestrator: Orchestrator
-): Promise<(Sync & { status: SyncStatus; active_logs: ActiveLogIds })[]> => {
+): Promise<(Sync & { sync_type: SyncTypeLiteral; status: SyncStatus; active_logs: ActiveLogIds })[]> => {
     const q = db.knex
-        .with('syncs', (qb) => {
-            qb.from<Sync>(TABLE)
-                .select(
-                    `${TABLE}.*`,
-                    `${TABLE}.frequency as frequency_override`,
-                    `${SYNC_CONFIG_TABLE}.runs as frequency`,
-                    `${SYNC_CONFIG_TABLE}.models`,
-                    `${ACTIVE_LOG_TABLE}.log_id as error_log_id`,
-                    db.knex.raw(`json_build_object( 'log_id', ${ACTIVE_LOG_TABLE}.log_id) as active_logs`),
-                    db.knex.raw(`
-                        CASE WHEN ${SYNC_JOB_TABLE}.sync_config_id IS NULL THEN NULL
-		                ELSE json_build_object(
+        .from<Sync>(TABLE)
+        .select(
+            `${TABLE}.*`,
+            `${TABLE}.frequency as frequency_override`,
+            `${SYNC_CONFIG_TABLE}.sync_type`,
+            `${SYNC_CONFIG_TABLE}.runs as frequency`,
+            `${SYNC_CONFIG_TABLE}.models`,
+            `${ACTIVE_LOG_TABLE}.log_id as error_log_id`,
+            db.knex.raw(`json_build_object( 'log_id', ${ACTIVE_LOG_TABLE}.log_id) as active_logs`),
+            db.knex.raw(
+                `(SELECT json_build_object(
                             'job_id', ${SYNC_JOB_TABLE}.id,
                             'created_at', ${SYNC_JOB_TABLE}.created_at,
                             'updated_at', ${SYNC_JOB_TABLE}.updated_at,
@@ -183,37 +183,29 @@ export const getSyncs = async (
                             'sync_config_id', ${SYNC_JOB_TABLE}.sync_config_id,
                             'version', ${SYNC_CONFIG_TABLE}.version,
                             'models', ${SYNC_CONFIG_TABLE}.models
-                            )
-                        END as latest_sync `),
-                    db.knex.raw(
-                        `ROW_NUMBER() OVER (PARTITION BY ${SYNC_JOB_TABLE}.sync_id ORDER BY ${SYNC_JOB_TABLE}.deleted ASC, ${SYNC_JOB_TABLE}.updated_at DESC) as job_row_number`
-                    )
-                )
-                .leftJoin(ACTIVE_LOG_TABLE, function () {
-                    this.on(`${ACTIVE_LOG_TABLE}.sync_id`, `${TABLE}.id`)
-                        .andOnVal(`${ACTIVE_LOG_TABLE}.active`, true)
-                        .andOnVal(`${ACTIVE_LOG_TABLE}.type`, 'sync');
-                })
-                .join(SYNC_CONFIG_TABLE, function () {
-                    this.on(`${SYNC_CONFIG_TABLE}.sync_name`, `${TABLE}.name`)
-                        .andOn(`${SYNC_CONFIG_TABLE}.deleted`, '=', db.knex.raw('FALSE'))
-                        .andOn(`${SYNC_CONFIG_TABLE}.active`, '=', db.knex.raw('TRUE'))
-                        .andOn(`${SYNC_CONFIG_TABLE}.type`, '=', db.knex.raw('?', 'sync'));
-                })
-                .leftJoin(SYNC_JOB_TABLE, function () {
-                    this.on(`${SYNC_JOB_TABLE}.sync_id`, `${TABLE}.id`)
-                        .andOn(db.knex.raw(`${SYNC_JOB_TABLE}.deleted = FALSE`))
-                        .andOn(db.knex.raw(`${SYNC_JOB_TABLE}.sync_config_id IS NOT NULL`));
-                })
-                .where({
-                    nango_connection_id: nangoConnection.id,
-                    [`${SYNC_CONFIG_TABLE}.nango_config_id`]: nangoConnection.config_id,
-                    [`${TABLE}.deleted`]: false
-                })
-                .orderBy(`${TABLE}.name`, 'asc');
+                        )
+                        FROM ${SYNC_JOB_TABLE}
+                        JOIN ${SYNC_CONFIG_TABLE} ON ${SYNC_CONFIG_TABLE}.id = ${SYNC_JOB_TABLE}.sync_config_id AND ${SYNC_CONFIG_TABLE}.deleted = false
+                        WHERE ${SYNC_JOB_TABLE}.sync_id = ${TABLE}.id AND ${SYNC_JOB_TABLE}.deleted = false
+                        ORDER BY ${SYNC_JOB_TABLE}.created_at DESC
+                        LIMIT 1) as latest_sync`
+            )
+        )
+        .leftJoin(ACTIVE_LOG_TABLE, function () {
+            this.on(`${ACTIVE_LOG_TABLE}.sync_id`, `${TABLE}.id`).andOnVal(`${ACTIVE_LOG_TABLE}.active`, true).andOnVal(`${ACTIVE_LOG_TABLE}.type`, 'sync');
         })
-        .from('syncs')
-        .where({ job_row_number: 1 });
+        .join(SYNC_CONFIG_TABLE, function () {
+            this.on(`${SYNC_CONFIG_TABLE}.sync_name`, `${TABLE}.name`)
+                .andOn(`${SYNC_CONFIG_TABLE}.deleted`, '=', db.knex.raw('FALSE'))
+                .andOn(`${SYNC_CONFIG_TABLE}.active`, '=', db.knex.raw('TRUE'))
+                .andOn(`${SYNC_CONFIG_TABLE}.type`, '=', db.knex.raw('?', 'sync'));
+        })
+        .where({
+            nango_connection_id: nangoConnection.id,
+            [`${SYNC_CONFIG_TABLE}.nango_config_id`]: nangoConnection.config_id,
+            [`${TABLE}.deleted`]: false
+        })
+        .orderBy(`${TABLE}.name`, 'asc');
 
     const result = await q;
 
@@ -382,9 +374,14 @@ export const getSyncsBySyncConfigId = async (environmentId: number, syncConfigId
     const results = await schema()
         .select('sync_name', `${TABLE}.id`)
         .from<Sync>(TABLE)
+        // Sync table doesn't have a unique foreign key to sync config
+        // so we need to join on the name
+        // and verify the sync connection environment
         .join(SYNC_CONFIG_TABLE, `${TABLE}.name`, `${SYNC_CONFIG_TABLE}.sync_name`)
+        .join(CONNECTIONS_TABLE, `${CONNECTIONS_TABLE}.id`, `${TABLE}.nango_connection_id`)
         .where({
-            environment_id: environmentId,
+            [`${CONNECTIONS_TABLE}.environment_id`]: environmentId,
+            [`${SYNC_CONFIG_TABLE}.environment_id`]: environmentId,
             [`${SYNC_CONFIG_TABLE}.id`]: syncConfigId,
             [`${TABLE}.deleted`]: false,
             [`${SYNC_CONFIG_TABLE}.deleted`]: false,
@@ -534,13 +531,14 @@ export const getAndReconcileDifferences = async ({
 
     const deletedSyncs: SlimSync[] = [];
     const deletedActions: SlimAction[] = [];
+    const deletedModels: string[] = [];
 
     if (!singleDeployMode) {
         for (const existingSync of existingSyncs) {
-            const exists = flows.find((sync) => sync.syncName === existingSync.sync_name && sync.providerConfigKey === existingSync.unique_key);
+            const flow = flows.find((sync) => sync.syncName === existingSync.sync_name && sync.providerConfigKey === existingSync.unique_key);
+            const connections = await connectionService.getConnectionsByEnvironmentAndConfig(environmentId, existingSync.unique_key);
 
-            if (!exists) {
-                const connections = await connectionService.getConnectionsByEnvironmentAndConfig(environmentId, existingSync.unique_key);
+            if (!flow) {
                 if (existingSync.type === 'sync') {
                     deletedSyncs.push({
                         name: existingSync.sync_name,
@@ -578,6 +576,14 @@ export const getAndReconcileDifferences = async ({
                         await logCtx?.info(content);
                     }
                 }
+            } else {
+                if (existingSync.type === 'sync') {
+                    const missingModels = existingSync.models.filter((model) => !flow.models.includes(model));
+                    // we only consider the model as missing if there are connections
+                    if (connections.length > 0) {
+                        deletedModels.push(...missingModels);
+                    }
+                }
             }
         }
     }
@@ -590,7 +596,8 @@ export const getAndReconcileDifferences = async ({
         newSyncs,
         newActions,
         deletedSyncs,
-        deletedActions
+        deletedActions,
+        deletedModels
     };
 };
 

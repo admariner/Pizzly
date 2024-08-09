@@ -15,13 +15,14 @@ import type {
     PostDeployConfirmation
 } from '@nangohq/types';
 import { stagingHost, cloudHost } from '@nangohq/shared';
-import { compileAllFiles, resolveTsFileLocation } from './compile.service.js';
+import { compileSingleFile, compileAllFiles, resolveTsFileLocation, getFileToCompile } from './compile.service.js';
 
 import verificationService from './verification.service.js';
 import { printDebug, parseSecretKey, port, enrichHeaders, http } from '../utils.js';
 import type { DeployOptions } from '../types.js';
 import { parse } from './config.service.js';
 import type { JSONSchema7 } from 'json-schema';
+import { loadSchemaJson } from './model.service.js';
 
 class DeployService {
     public async admin({ fullPath, environmentName, debug = false }: { fullPath: string; environmentName: string; debug?: boolean }): Promise<void> {
@@ -98,7 +99,7 @@ class DeployService {
     }
 
     public async prep({ fullPath, options, environment, debug = false }: { fullPath: string; options: DeployOptions; environment: string; debug?: boolean }) {
-        const { env, version, sync: optionalSyncName, action: optionalActionName, autoConfirm } = options;
+        const { env, version, sync: optionalSyncName, action: optionalActionName, autoConfirm, allowDestructive } = options;
         await verificationService.necessaryFilesExist({ fullPath, autoConfirm, checkDist: false });
 
         await parseSecretKey(environment, debug);
@@ -131,7 +132,35 @@ class DeployService {
 
         const singleDeployMode = Boolean(optionalSyncName || optionalActionName);
 
-        const successfulCompile = await compileAllFiles({ fullPath, debug });
+        let successfulCompile = false;
+
+        if (singleDeployMode) {
+            const scriptName: string = String(optionalSyncName || optionalActionName);
+            const type = optionalSyncName ? 'syncs' : 'actions';
+            const providerConfigKey = response.parsed.integrations.find((integration) => {
+                if (optionalSyncName) {
+                    return integration.syncs.find((sync) => sync.name === scriptName);
+                } else {
+                    return integration.actions.find((action) => action.name === scriptName);
+                }
+            })?.providerConfigKey;
+
+            if (providerConfigKey) {
+                const parentFilePath = resolveTsFileLocation({ fullPath, scriptName, providerConfigKey, type });
+                successfulCompile = await compileSingleFile({
+                    fullPath,
+                    file: getFileToCompile({
+                        fullPath,
+                        filePath: path.join(parentFilePath, `${scriptName}.ts`)
+                    }),
+                    parsed: response.parsed,
+                    debug
+                });
+            }
+        } else {
+            successfulCompile = await compileAllFiles({ fullPath, debug });
+        }
+
         if (!successfulCompile) {
             console.log(chalk.red('Compilation was not fully successful. Please make sure all files compile before deploying'));
             process.exit(1);
@@ -147,57 +176,95 @@ class DeployService {
         const url = process.env['NANGO_HOSTPORT'] + `/sync/deploy`;
         const bodyDeploy: PostDeploy['Body'] = { ...postData, reconcile: true, debug, nangoYamlBody, singleDeployMode };
 
-        if (process.env['NANGO_DEPLOY_AUTO_CONFIRM'] !== 'true' && !autoConfirm) {
-            const confirmationUrl = process.env['NANGO_HOSTPORT'] + `/sync/deploy/confirmation`;
-            try {
-                const bodyConfirmation: PostDeployConfirmation['Body'] = { ...postData, reconcile: false, debug, singleDeployMode };
-                const response = await http.post(confirmationUrl, bodyConfirmation, { headers: enrichHeaders() });
+        const shouldConfirm = process.env['NANGO_DEPLOY_AUTO_CONFIRM'] !== 'true' && !autoConfirm;
+        const confirmationUrl = process.env['NANGO_HOSTPORT'] + `/sync/deploy/confirmation`;
+        try {
+            const bodyConfirmation: PostDeployConfirmation['Body'] = { ...postData, reconcile: false, debug, singleDeployMode };
+            const response = await http.post(confirmationUrl, bodyConfirmation, { headers: enrichHeaders() });
 
+            if (shouldConfirm) {
                 // Show response in term
                 console.log(JSON.stringify(response.data, null, 2));
+            }
 
-                const { newSyncs, deletedSyncs } = response.data;
+            const { newSyncs, deletedSyncs, deletedModels } = response.data;
 
-                for (const sync of newSyncs) {
-                    const actionMessage =
-                        sync.connections === 0 || sync.auto_start === false
-                            ? 'The sync will be added to your Nango instance if you deploy.'
-                            : `Nango will start syncing the corresponding data for ${sync.connections} existing connections.`;
-                    console.log(chalk.yellow(`Sync "${sync.name}" is new. ${actionMessage}`));
+            for (const sync of newSyncs) {
+                const syncMessage =
+                    sync.connections === 0 || sync.auto_start === false
+                        ? 'The sync will be added to your Nango instance if you deploy.'
+                        : `Nango will start syncing the corresponding data for ${sync.connections} existing connections.`;
+                console.log(chalk.yellow(`Sync "${sync.name}" is new. ${syncMessage}`));
+            }
+
+            let deletedSyncsConnectionsCount = 0;
+            for (const sync of deletedSyncs) {
+                console.log(
+                    chalk.red(
+                        `Sync "${sync.name}" has been removed. It will stop running and the corresponding data will be deleted for ${sync.connections} existing connections.`
+                    )
+                );
+                deletedSyncsConnectionsCount += sync.connections;
+            }
+
+            if (deletedModels.length > 0) {
+                console.log(
+                    chalk.red(
+                        `The following models have been removed: ${deletedModels.join(', ')}. WARNING: Renaming a model is the equivalent of deleting the old model and creating a new one. Records from the old model won't be transferred to the new model. Consider running a full sync to transfer records.`
+                    )
+                );
+            }
+
+            // force confirmation :
+            // - if auto-confirm flag is not set
+            // - OR if there are deleted syncs with connections (and allow-destructive flag is not set)
+            // - OR if there are deleted models (and allow-destructive flag is not set)
+            // If CI, fail the deploy
+            const shouldConfirmDestructive = (deletedSyncsConnectionsCount > 0 || deletedModels.length > 0) && !allowDestructive;
+            if (shouldConfirm || shouldConfirmDestructive) {
+                let confirmationMsg = `Are you sure you want to continue y/n?`;
+                if (!shouldConfirm && shouldConfirmDestructive) {
+                    confirmationMsg += ' (set --allow-destructive flag to skip this confirmation)';
                 }
-
-                for (const sync of deletedSyncs) {
+                if (process.env['CI']) {
                     console.log(
                         chalk.red(
-                            `Sync "${sync.name}" has been removed. It will stop running and the corresponding data will be deleted for ${sync.connections} existing connections.`
+                            `Syncs/Actions were not deployed. Confirm the deploy by passing the --auto-confirm flag${shouldConfirmDestructive ? ' and --allow-destructive flag' : ''}. Exiting`
                         )
                     );
+                    process.exit(1);
                 }
-
-                const confirmation = await promptly.confirm('Do you want to continue y/n?');
+                const confirmation = await promptly.confirm(confirmationMsg);
                 if (!confirmation) {
                     console.log(chalk.red('Syncs/Actions were not deployed. Exiting'));
                     process.exit(0);
                 }
-            } catch (err: any) {
-                console.log(chalk.red(`Error deploying the syncs/actions with the following error`));
-
-                let errorObject = err;
-                if (err instanceof AxiosError) {
-                    if (err.response?.data?.error) {
-                        errorObject = err.response.data.error;
-                    } else {
-                        errorObject = { message: err.message, stack: err.stack, code: err.code, status: err.status, url, method: err.config?.method };
+            } else {
+                if (debug) {
+                    const flags: string[] = [];
+                    if (!shouldConfirm) {
+                        flags.push('Auto confirm flag');
                     }
+                    if (!shouldConfirmDestructive) {
+                        flags.push('Allow destructive flag');
+                    }
+                    printDebug(`${flags.join(' and ')} ${flags.length > 1 ? 'are' : 'is'} set, so deploy will start without confirmation`);
                 }
+            }
+        } catch (err: any) {
+            console.log(chalk.red(`Error deploying the syncs/actions with the following error`));
 
-                console.log(chalk.red(JSON.stringify(errorObject, null, 2)));
-                process.exit(1);
+            let errorObject = err;
+            if (err instanceof AxiosError) {
+                if (err.response?.data?.error) {
+                    errorObject = err.response.data.error;
+                } else {
+                    errorObject = { message: err.message, stack: err.stack, code: err.code, status: err.status, url, method: err.config?.method };
+                }
             }
-        } else {
-            if (debug) {
-                printDebug(`Auto confirm is set so deploy will start without confirmation`);
-            }
+
+            console.log(chalk.red(JSON.stringify(errorObject, null, 2)));
+            process.exit(1);
         }
 
         await this.deploy(url, bodyDeploy);
@@ -257,87 +324,91 @@ class DeployService {
                 postConnectionScriptsByProvider.push({ providerConfigKey, scripts });
             }
 
-            for (const sync of integration.syncs) {
-                if (optionalSyncName && optionalSyncName !== sync.name) {
-                    continue;
-                }
+            if (!optionalActionName) {
+                for (const sync of integration.syncs) {
+                    if (optionalSyncName && optionalSyncName !== sync.name) {
+                        continue;
+                    }
 
-                const metadata: NangoConfigMetadata = {};
-                if (sync.description) {
-                    metadata['description'] = sync.description;
-                }
-                if (sync.scopes) {
-                    metadata['scopes'] = sync.scopes;
-                }
+                    const metadata: NangoConfigMetadata = {};
+                    if (sync.description) {
+                        metadata['description'] = sync.description;
+                    }
+                    if (sync.scopes) {
+                        metadata['scopes'] = sync.scopes;
+                    }
 
-                const files = loadScriptFiles({ scriptName: sync.name, providerConfigKey, fullPath, type: 'syncs' });
-                if (!files) {
-                    console.log(chalk.red(`No script files found for "${sync.name}"`));
-                    return null;
-                }
-                if (debug) {
-                    printDebug(`Scripts files found for ${sync.name}`);
-                }
+                    const files = loadScriptFiles({ scriptName: sync.name, providerConfigKey, fullPath, type: 'syncs' });
+                    if (!files) {
+                        console.log(chalk.red(`No script files found for "${sync.name}"`));
+                        return null;
+                    }
+                    if (debug) {
+                        printDebug(`Scripts files found for ${sync.name}`);
+                    }
 
-                const body: IncomingFlowConfig = {
-                    syncName: sync.name,
-                    providerConfigKey,
-                    models: sync.output || [],
-                    version: version,
-                    runs: sync.runs,
-                    track_deletes: sync.track_deletes,
-                    auto_start: sync.auto_start,
-                    attributes: {},
-                    metadata: metadata,
-                    input: sync.input || undefined,
-                    sync_type: sync.sync_type,
-                    type: sync.type,
-                    fileBody: files,
-                    model_schema: JSON.stringify(sync.usedModels.map((name) => parsed.models.get(name))),
-                    endpoints: sync.endpoints,
-                    webhookSubscriptions: sync.webhookSubscriptions
-                };
+                    const body: IncomingFlowConfig = {
+                        syncName: sync.name,
+                        providerConfigKey,
+                        models: sync.output || [],
+                        version: version || sync.version,
+                        runs: sync.runs,
+                        track_deletes: sync.track_deletes,
+                        auto_start: sync.auto_start,
+                        attributes: {},
+                        metadata: metadata,
+                        input: sync.input || undefined,
+                        sync_type: sync.sync_type,
+                        type: sync.type,
+                        fileBody: files,
+                        model_schema: sync.usedModels.map((name) => parsed.models.get(name)!),
+                        endpoints: sync.endpoints,
+                        webhookSubscriptions: sync.webhookSubscriptions
+                    };
 
-                postData.push(body);
+                    postData.push(body);
+                }
             }
 
-            for (const action of integration.actions) {
-                if (optionalActionName && optionalActionName !== action.name) {
-                    continue;
-                }
+            if (!optionalSyncName) {
+                for (const action of integration.actions) {
+                    if (optionalActionName && optionalActionName !== action.name) {
+                        continue;
+                    }
 
-                const metadata = {} as NangoConfigMetadata;
-                if (action.description) {
-                    metadata['description'] = action.description;
-                }
-                if (action.scopes) {
-                    metadata['scopes'] = action.scopes;
-                }
+                    const metadata = {} as NangoConfigMetadata;
+                    if (action.description) {
+                        metadata['description'] = action.description;
+                    }
+                    if (action.scopes) {
+                        metadata['scopes'] = action.scopes;
+                    }
 
-                const files = loadScriptFiles({ scriptName: action.name, providerConfigKey, fullPath, type: 'actions' });
-                if (!files) {
-                    console.log(chalk.red(`No script files found for "${action.name}"`));
-                    return null;
-                }
-                if (debug) {
-                    printDebug(`Scripts files found for "${action.name}"`);
-                }
+                    const files = loadScriptFiles({ scriptName: action.name, providerConfigKey, fullPath, type: 'actions' });
+                    if (!files) {
+                        console.log(chalk.red(`No script files found for "${action.name}"`));
+                        return null;
+                    }
+                    if (debug) {
+                        printDebug(`Scripts files found for "${action.name}"`);
+                    }
 
-                const body: IncomingFlowConfig = {
-                    syncName: action.name,
-                    providerConfigKey,
-                    models: action.output || [],
-                    version: version,
-                    runs: '',
-                    metadata: metadata,
-                    input: action.input || undefined,
-                    type: action.type,
-                    fileBody: files,
-                    model_schema: action.usedModels.map((name) => parsed.models.get(name)!),
-                    endpoints: action.endpoint ? [action.endpoint] : []
-                };
+                    const body: IncomingFlowConfig = {
+                        syncName: action.name,
+                        providerConfigKey,
+                        models: action.output || [],
+                        version: version || action.version,
+                        runs: '',
+                        metadata: metadata,
+                        input: action.input || undefined,
+                        type: action.type,
+                        fileBody: files,
+                        model_schema: action.usedModels.map((name) => parsed.models.get(name)!),
+                        endpoints: action.endpoint ? [action.endpoint] : []
+                    };
 
-                postData.push(body);
+                    postData.push(body);
+                }
             }
         }
 
@@ -424,16 +495,6 @@ function loadScriptTsFile({
         return tsIntegrationFileContents;
     } catch (error) {
         console.error(chalk.red(`Error loading file ${filePath}`), error);
-        return null;
-    }
-}
-
-function loadSchemaJson({ fullPath }: { fullPath: string }): JSONSchema7 | null {
-    const filePath = path.join(fullPath, '.nango', 'schema.json');
-    try {
-        return JSON.parse(fs.readFileSync(filePath).toString()) as JSONSchema7;
-    } catch (error) {
-        console.error(chalk.red(`Error loading ${filePath}`), error);
         return null;
     }
 }

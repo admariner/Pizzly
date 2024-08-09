@@ -3,7 +3,7 @@ import type { SlackNotification } from '../../models/SlackNotification.js';
 import type { NangoConnection } from '../../models/Connection.js';
 import type { ServiceResponse } from '../../models/Generic.js';
 import environmentService from '../environment.service.js';
-import { basePublicUrl, getLogger } from '@nangohq/utils';
+import { basePublicUrl, getLogger, stringToHash } from '@nangohq/utils';
 import connectionService from '../connection.service.js';
 import accountService from '../account.service.js';
 import type { LogContext, LogContextGetter } from '@nangohq/logs';
@@ -23,6 +23,10 @@ interface NotificationResponse {
 
 interface NotificationPayload {
     content: string;
+    meta?: {
+        accountName: string;
+        accountUuid: string;
+    };
     providerConfigKey: string;
     provider: string;
     status: string;
@@ -138,7 +142,10 @@ export class SlackService {
             throw new Error('failed_to_get_account');
         }
 
-        payload.content = `${payload.content} [Account ${account.uuid} Environment ${environment_id}]`;
+        payload.meta = {
+            accountName: account.name,
+            accountUuid: account.uuid
+        };
 
         if (ts) {
             payload.ts = ts;
@@ -259,7 +266,18 @@ export class SlackService {
         const flowType = type;
         const date = new Date();
         const payload: NotificationPayload = {
-            content: this.getMessage({ type, count, connectionWord, flowType, name, envName, originalActivityLogId, date, resolved: false }),
+            content: this.getMessage({
+                type,
+                count,
+                connectionWord,
+                flowType,
+                name,
+                providerConfigKey: nangoConnection.provider_config_key,
+                envName,
+                originalActivityLogId,
+                date,
+                resolved: false
+            }),
             status: 'open',
             providerConfigKey: nangoConnection.provider_config_key,
             provider
@@ -344,6 +362,7 @@ export class SlackService {
                 connectionWord: 'connections',
                 flowType: type,
                 name: syncName,
+                providerConfigKey: nangoConnection.provider_config_key,
                 envName,
                 originalActivityLogId,
                 date: new Date(),
@@ -358,6 +377,7 @@ export class SlackService {
                 connectionWord: connection,
                 flowType: type,
                 name: syncName,
+                providerConfigKey: nangoConnection.provider_config_key,
                 envName,
                 originalActivityLogId,
                 date: new Date(),
@@ -436,11 +456,13 @@ export class SlackService {
     async hasOpenNotification(
         nangoConnection: NangoConnection,
         name: string,
-        type: string
+        type: string,
+        trx = db.knex
     ): Promise<Pick<SlackNotification, 'id' | 'connection_list' | 'slack_timestamp' | 'admin_slack_timestamp'> | null> {
-        const hasOpenNotification = await schema()
+        const hasOpenNotification = await trx
             .select('id', 'connection_list', 'slack_timestamp', 'admin_slack_timestamp')
             .from<SlackNotification>(TABLE)
+            .forUpdate()
             .where({
                 open: true,
                 environment_id: nangoConnection.environment_id,
@@ -460,8 +482,8 @@ export class SlackService {
      * @desc create a new notification for the given name and environment id
      * and return the id of the created notification.
      */
-    async createNotification(nangoConnection: NangoConnection, name: string, type: string): Promise<Pick<SlackNotification, 'id'> | null> {
-        const result = await schema()
+    async createNotification(nangoConnection: NangoConnection, name: string, type: string, trx = db.knex): Promise<Pick<SlackNotification, 'id'> | null> {
+        const result = await trx
             .from<SlackNotification>(TABLE)
             .insert({
                 open: true,
@@ -485,35 +507,68 @@ export class SlackService {
      * and if so add the connection id to the connection list.
      */
     async addFailingConnection(nangoConnection: NangoConnection, name: string, type: string): Promise<ServiceResponse<NotificationResponse>> {
-        const isOpen = await this.hasOpenNotification(nangoConnection, name, type);
+        return await db.knex.transaction(async (trx) => {
+            const lockKey = stringToHash(`${nangoConnection.environment_id}-${name}-${type}-add`);
 
-        if (isOpen && type === 'auth') {
-            return {
-                success: true,
-                error: null,
-                response: null
-            };
-        }
+            const { rows } = await trx.raw<{ rows: { pg_try_advisory_xact_lock: boolean }[] }>(`SELECT pg_try_advisory_xact_lock(?);`, [lockKey]);
 
-        logger.info(`Notifying ${nangoConnection.id} type:${type} name:${name}`);
+            if (!rows?.[0]?.pg_try_advisory_xact_lock) {
+                logger.info(`addFailingConnection operation: ${lockKey} could not acquire lock, skipping`);
+                return { success: true, error: null, response: null };
+            }
 
-        if (!isOpen) {
-            const created = await this.createNotification(nangoConnection, name, type);
+            const isOpen = await this.hasOpenNotification(nangoConnection, name, type, trx);
 
-            return {
-                success: true,
-                error: null,
-                response: {
-                    id: created?.id as number,
-                    isOpen: false,
-                    connectionCount: 1
-                }
-            };
-        }
+            if (isOpen && type === 'auth') {
+                return {
+                    success: true,
+                    error: null,
+                    response: null
+                };
+            }
 
-        const { id, connection_list } = isOpen;
+            logger.info(`Notifying ${nangoConnection.id} type:${type} name:${name}`);
 
-        if (connection_list.includes(nangoConnection.id as number)) {
+            if (!isOpen) {
+                const created = await this.createNotification(nangoConnection, name, type, trx);
+
+                return {
+                    success: true,
+                    error: null,
+                    response: {
+                        id: created?.id as number,
+                        isOpen: false,
+                        connectionCount: 1
+                    }
+                };
+            }
+
+            const { id, connection_list } = isOpen;
+
+            if (connection_list.includes(nangoConnection.id as number)) {
+                return {
+                    success: true,
+                    error: null,
+                    response: {
+                        id: id as number,
+                        isOpen: true,
+                        slack_timestamp: isOpen.slack_timestamp as string,
+                        admin_slack_timestamp: isOpen.admin_slack_timestamp as string,
+                        connectionCount: connection_list.length
+                    }
+                };
+            }
+
+            connection_list.push(nangoConnection.id as number);
+
+            await trx
+                .from<SlackNotification>(TABLE)
+                .where({ id: id as number })
+                .update({
+                    connection_list,
+                    updated_at: new Date()
+                });
+
             return {
                 success: true,
                 error: null,
@@ -525,29 +580,7 @@ export class SlackService {
                     connectionCount: connection_list.length
                 }
             };
-        }
-
-        connection_list.push(nangoConnection.id as number);
-
-        await schema()
-            .from<SlackNotification>(TABLE)
-            .where({ id: id as number })
-            .update({
-                connection_list,
-                updated_at: new Date()
-            });
-
-        return {
-            success: true,
-            error: null,
-            response: {
-                id: id as number,
-                isOpen: true,
-                slack_timestamp: isOpen.slack_timestamp as string,
-                admin_slack_timestamp: isOpen.admin_slack_timestamp as string,
-                connectionCount: connection_list.length
-            }
-        };
+        });
     }
 
     /**
@@ -565,52 +598,62 @@ export class SlackService {
         environment_id: number,
         provider: string
     ): Promise<void> {
-        const slackNotificationsEnabled = await environmentService.getSlackNotificationsEnabled(nangoConnection.environment_id);
+        await db.knex.transaction(async (trx) => {
+            const slackNotificationsEnabled = await environmentService.getSlackNotificationsEnabled(nangoConnection.environment_id);
 
-        if (!slackNotificationsEnabled) {
-            return;
-        }
+            if (!slackNotificationsEnabled) {
+                return;
+            }
+            const lockKey = stringToHash(`${nangoConnection.environment_id}-${name}-${type}-remove`);
 
-        const isOpen = await this.hasOpenNotification(nangoConnection, name, type);
+            const { rows } = await trx.raw<{ rows: { pg_try_advisory_xact_lock: boolean }[] }>(`SELECT pg_try_advisory_xact_lock(?);`, [lockKey]);
 
-        if (!isOpen) {
-            return;
-        }
+            if (!rows?.[0]?.pg_try_advisory_xact_lock) {
+                logger.info(`removeFailingConnection operation: ${lockKey} could not acquire lock, skipping`);
+                return;
+            }
 
-        const { id, connection_list, slack_timestamp, admin_slack_timestamp } = isOpen;
+            const isOpen = await this.hasOpenNotification(nangoConnection, name, type, trx);
 
-        const index = connection_list.indexOf(nangoConnection.id as number);
-        if (index === -1) {
-            return;
-        }
+            if (!isOpen) {
+                return;
+            }
 
-        logger.info(`Resolving ${nangoConnection.id} type:${type} name:${name}`);
+            const { id, connection_list, slack_timestamp, admin_slack_timestamp } = isOpen;
 
-        connection_list.splice(index, 1);
+            const index = connection_list.indexOf(nangoConnection.id as number);
+            if (index === -1) {
+                return;
+            }
 
-        await db.knex
-            .from<SlackNotification>(TABLE)
-            .where({ id: id as number })
-            .update({
-                open: connection_list.length > 0,
-                connection_list,
-                updated_at: new Date()
-            });
+            logger.info(`Resolving ${nangoConnection.id} type:${type} name:${name}`);
 
-        // we report resolution to the slack channel which could be either
-        // 1) The slack notification is resolved, connection_list === 0
-        // 2) The list of failing connections has been decremented
-        await this.reportResolution(
-            nangoConnection,
-            name,
-            type,
-            originalActivityLogId,
-            environment_id,
-            provider,
-            slack_timestamp as string,
-            admin_slack_timestamp as string,
-            connection_list.length
-        );
+            connection_list.splice(index, 1);
+
+            await trx
+                .from<SlackNotification>(TABLE)
+                .where({ id: id as number })
+                .update({
+                    open: connection_list.length > 0,
+                    connection_list,
+                    updated_at: new Date()
+                });
+
+            // we report resolution to the slack channel which could be either
+            // 1) The slack notification is resolved, connection_list === 0
+            // 2) The list of failing connections has been decremented
+            await this.reportResolution(
+                nangoConnection,
+                name,
+                type,
+                originalActivityLogId,
+                environment_id,
+                provider,
+                slack_timestamp as string,
+                admin_slack_timestamp as string,
+                connection_list.length
+            );
+        });
     }
 
     async closeAllOpenNotifications(environment_id: number): Promise<void> {
@@ -654,11 +697,17 @@ export class SlackService {
 
         if (type === 'auth') {
             usp.set('connections', name);
+        } else if (type === 'integration') {
+            usp.set('integrations', name);
         } else {
             usp.set('syncs', name);
         }
 
         return `${basePublicUrl}/${envName}/logs?${usp.toString()}`;
+    }
+
+    private getPageUrl({ envName, providerConfigKey, name, type }: { envName: string; providerConfigKey: string; name: string; type: string }) {
+        return `${basePublicUrl}/${envName}/${type}/${providerConfigKey}/${name}`;
     }
 
     private getMessage({
@@ -667,6 +716,7 @@ export class SlackService {
         connectionWord,
         flowType,
         name,
+        providerConfigKey,
         envName,
         originalActivityLogId,
         date,
@@ -677,6 +727,7 @@ export class SlackService {
         connectionWord: string;
         flowType: string;
         name: string;
+        providerConfigKey: string;
         envName: string;
         originalActivityLogId: string | null;
         date: Date;
@@ -686,16 +737,16 @@ export class SlackService {
             case 'sync':
             case 'action': {
                 if (resolved) {
-                    return `[Resolved] *${name}* (${flowType.toLowerCase()}) in *${envName}* failed. Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
+                    return `[Resolved] \`${name}\` ${flowType.toLowerCase()} (integration: \`${providerConfigKey}\`) in *${envName}* failed. Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
                 } else {
-                    return `*${name}* (${flowType.toLowerCase()}) is failing for ${count} ${connectionWord} in *${envName}*. Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
+                    return `\`${name}\` ${flowType.toLowerCase()} (integration: \`${providerConfigKey}\`) is failing for ${count} ${connectionWord} in *${envName}*. Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
                 }
             }
             case 'auth': {
                 if (resolved) {
-                    return `[Resolved] connection *${name}* in *${envName}* refresh failed.`;
+                    return `[Resolved] connection <${this.getPageUrl({ envName, name, providerConfigKey, type: 'connections' })}|*${name}*> (integration: \`${providerConfigKey}\`) in *${envName}* refresh failed.`;
                 } else {
-                    return `Could not refresh token of connection *${name}* in *${envName}*. Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
+                    return `Could not refresh token of connection <${this.getPageUrl({ envName, name, providerConfigKey, type: 'connections' })}|*${name}*> in *${envName}* (integration: \`${providerConfigKey}\`). Read <${this.getLogUrl({ envName, originalActivityLogId, name, date, type })}|logs>.`;
                 }
             }
         }

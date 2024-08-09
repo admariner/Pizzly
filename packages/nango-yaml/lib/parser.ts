@@ -1,5 +1,5 @@
 import type { NangoModel, NangoYaml, NangoYamlParsed, ScriptTypeLiteral } from '@nangohq/types';
-import { ModelsParser } from './modelsParser.js';
+import { ModelsParser, getRecursiveModelNames } from './modelsParser.js';
 import {
     ParserErrorDuplicateEndpoint,
     ParserErrorDuplicateModel,
@@ -52,7 +52,7 @@ export abstract class NangoYamlParser {
             }
 
             // Create anonymous model for validation
-            const parsed = this.modelsParser.parseFields({ fields: { output: modelOrType }, parent: name });
+            const parsed = this.modelsParser.parseFields({ fields: { output: modelOrType }, stack: new Set([name]) });
 
             const anon = `Anonymous_${integrationName.replace(/[^A-Za-z0-9_]/g, '')}_${type}_${name.replace(/[^A-Za-z0-9_]/g, '')}_output`;
             const anonModel: NangoModel = { name: anon, fields: parsed, isAnon: true };
@@ -77,13 +77,19 @@ export abstract class NangoYamlParser {
 
             // --- Validate syncs
             for (const sync of integration.syncs) {
+                const usedModelsSync = new Set<string>();
                 if (sync.output) {
                     for (const output of sync.output) {
                         if (usedModels.has(output)) {
                             this.errors.push(new ParserErrorDuplicateModel({ model: output, path: [integrationName, 'syncs', sync.name, '[output]'] }));
                             continue;
                         }
+
+                        // We register the model usage and recursively too
                         usedModels.add(output);
+                        usedModelsSync.add(output);
+                        const find = getRecursiveModelNames(this.modelsParser, output);
+                        find.forEach((name) => usedModelsSync.add(name));
 
                         const model = this.modelsParser.get(output)!;
                         if (!model.fields.find((field) => field.name === 'id')) {
@@ -107,7 +113,12 @@ export abstract class NangoYamlParser {
                             );
                         }
                     }
+
+                    // We register the model usage and recursively too
                     usedModels.add(sync.input);
+                    usedModelsSync.add(sync.input);
+                    const find = getRecursiveModelNames(this.modelsParser, sync.input);
+                    find.forEach((name) => usedModelsSync.add(name));
                 }
                 for (const endpointByVerb of sync.endpoints) {
                     for (const [verb, endpoint] of Object.entries(endpointByVerb)) {
@@ -134,19 +145,24 @@ export abstract class NangoYamlParser {
                     }
                 }
 
-                sync.usedModels = Array.from(usedModels);
+                sync.usedModels = Array.from(usedModelsSync);
             }
 
             // --- Validate actions
             for (const action of integration.actions) {
-                const usedModels = new Set<string>();
+                const usedModelsAction = new Set<string>();
                 if (action.output) {
                     for (const output of action.output) {
-                        if (usedModels.has(output)) {
+                        if (usedModelsAction.has(output)) {
                             this.errors.push(new ParserErrorDuplicateModel({ model: output, path: [integrationName, 'actions', action.name, '[output]'] }));
                             continue;
                         }
+
+                        // We register the model usage and recursively too
                         usedModels.add(output);
+                        usedModelsAction.add(output);
+                        const find = getRecursiveModelNames(this.modelsParser, output);
+                        find.forEach((name) => usedModelsAction.add(name));
 
                         const model = this.modelsParser.get(output)!;
                         if (output.startsWith('Anonymous') && !model.fields[0]?.union) {
@@ -171,7 +187,12 @@ export abstract class NangoYamlParser {
                             );
                         }
                     }
+
+                    // We register the model usage and recursively too
                     usedModels.add(action.input);
+                    usedModelsAction.add(action.input);
+                    const find = getRecursiveModelNames(this.modelsParser, action.input);
+                    find.forEach((name) => usedModelsAction.add(name));
                 }
                 if (action.endpoint) {
                     for (const [verb, endpoint] of Object.entries(action.endpoint)) {
@@ -198,7 +219,7 @@ export abstract class NangoYamlParser {
                         }
                     }
                 }
-                action.usedModels = Array.from(usedModels);
+                action.usedModels = Array.from(usedModelsAction);
             }
         }
     }

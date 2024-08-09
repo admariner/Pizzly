@@ -1,9 +1,9 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { isEnterprise, isStaging, isProd, localhostUrl, cloudHost, stagingHost } from '@nangohq/utils';
-import type { Environment } from '../models/Environment.js';
 import environmentService from '../services/environment.service.js';
 import type { Connection } from '../models/Connection.js';
+import type { DBEnvironment } from '@nangohq/types';
 
 export { cloudHost, stagingHost };
 
@@ -94,6 +94,18 @@ export function parseTokenExpirationDate(expirationDate: any): Date {
     return new Date(expirationDate);
 }
 
+export function parseTableauTokenExpirationDate(timeStr: string): Date | undefined {
+    // sample estimatedTimeToExpire: "estimatedTimeToExpiration": "177:05:38"
+    const [days, hours, minutes] = timeStr.split(':').map(Number);
+
+    if (days && hours && minutes) {
+        const milliseconds = ((days * 24 + hours) * 60 + minutes) * 60 * 1000;
+        return new Date(Date.now() + milliseconds);
+    }
+
+    return undefined;
+}
+
 export function isTokenExpired(expireDate: Date, bufferInSeconds: number): boolean {
     const currDate = new Date();
     const dateDiffMs = expireDate.getTime() - currDate.getTime();
@@ -141,7 +153,7 @@ export async function getOauthCallbackUrl(environmentId?: number) {
     const globalCallbackUrl = getGlobalOAuthCallbackUrl();
 
     if (environmentId != null) {
-        const environment: Environment | null = await environmentService.getById(environmentId);
+        const environment: DBEnvironment | null = await environmentService.getById(environmentId);
         return environment?.callback_url || globalCallbackUrl;
     }
 
@@ -212,7 +224,7 @@ export function connectionCopyWithParsedConnectionConfig(connection: Connection)
 
 export function mapProxyBaseUrlInterpolationFormat(baseUrl: string | undefined): string | undefined {
     // Maps the format that is used in providers.yaml (inherited from oauth), to the format of the Connection model.
-    return baseUrl ? baseUrl.replace('connectionConfig', 'connection_config') : baseUrl;
+    return baseUrl ? baseUrl.replace(/connectionConfig/g, 'connection_config') : baseUrl;
 }
 
 export function interpolateIfNeeded(str: string, replacers: Record<string, any>) {
@@ -226,29 +238,4 @@ export function interpolateIfNeeded(str: string, replacers: Record<string, any>)
 export function getConnectionConfig(queryParams: any): Record<string, string> {
     const arr = Object.entries(queryParams).filter(([, v]) => typeof v === 'string'); // Filter strings
     return Object.fromEntries(arr) as Record<string, string>;
-}
-
-export function safeStringify(obj: any): string {
-    const stringify = (obj: any, indent = 2) => {
-        const cache = new Set();
-        const jsonString = JSON.stringify(
-            obj,
-            (_key, value) => {
-                if (typeof value === 'object' && value !== null) {
-                    if (cache.has(value)) {
-                        return;
-                    }
-                    cache.add(value);
-                }
-                return value;
-            },
-            indent
-        );
-        cache.clear();
-        return jsonString;
-    };
-
-    const content = obj.map((arg: any) => (typeof arg === 'object' ? stringify(arg) : String(arg))).join(' ');
-
-    return content;
 }

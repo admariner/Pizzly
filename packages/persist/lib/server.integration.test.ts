@@ -1,11 +1,12 @@
 import { expect, describe, it, beforeAll, afterAll, vi } from 'vitest';
 import { server } from './server.js';
 import fetch from 'node-fetch';
-import type { AuthCredentials, Connection, Sync, Job as SyncJob, Environment, Account } from '@nangohq/shared';
+import type { AuthCredentials, Connection, Sync, Job as SyncJob } from '@nangohq/shared';
 import db, { multipleMigrations } from '@nangohq/database';
 import { environmentService, connectionService, createSync, createSyncJob, SyncType, SyncStatus, accountService } from '@nangohq/shared';
 import { logContextGetter, migrateLogsMapping } from '@nangohq/logs';
 import { migrate as migrateRecords } from '@nangohq/records';
+import type { DBEnvironment, DBTeam } from '@nangohq/types';
 
 const mockSecretKey = 'secret-key';
 
@@ -13,8 +14,8 @@ describe('Persist API', () => {
     const port = 3096;
     const serverUrl = `http://localhost:${port}`;
     let seed: {
-        account: Account;
-        env: Environment;
+        account: DBTeam;
+        env: DBEnvironment;
         activityLogId: string;
         connection: Connection;
         sync: Sync;
@@ -288,7 +289,7 @@ const initDb = async () => {
     const sync = await createSync(connectionId, 'sync-test');
     if (!sync?.id) throw new Error('Sync not created');
 
-    const syncJob = (await createSyncJob(sync.id, SyncType.INITIAL, SyncStatus.RUNNING, `job-test`, connection)) as SyncJob;
+    const syncJob = (await createSyncJob(sync.id, SyncType.FULL, SyncStatus.RUNNING, `job-test`, connection)) as SyncJob;
     if (!syncJob) throw new Error('Sync job not created');
 
     return {

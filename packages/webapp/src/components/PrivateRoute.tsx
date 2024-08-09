@@ -7,16 +7,15 @@ import { useUser } from '../hooks/useUser';
 import PageNotFound from '../pages/PageNotFound';
 
 export const PrivateRoute: React.FC = () => {
-    const { meta, error, loading } = useMeta();
+    const { meta, error, loading: loadingMeta } = useMeta();
     const [notFoundEnv, setNotFoundEnv] = useState(false);
     const [ready, setReady] = useState(false);
-    const { user } = useUser(Boolean(meta && ready && !notFoundEnv));
+    const { user, loading: loadingUser } = useUser(Boolean(meta && ready && !notFoundEnv));
     const identify = useAnalyticsIdentify();
 
     const env = useStore((state) => state.env);
     const setStoredEnvs = useStore((state) => state.setEnvs);
     const setBaseUrl = useStore((state) => state.setBaseUrl);
-    const setEmail = useStore((state) => state.setEmail);
     const setDebugMode = useStore((state) => state.setDebugMode);
     const setEnv = useStore((state) => state.setEnv);
 
@@ -27,7 +26,6 @@ export const PrivateRoute: React.FC = () => {
 
         setStoredEnvs(meta.environments);
         setBaseUrl(meta.baseUrl);
-        setEmail(meta.email);
         setDebugMode(meta.debugMode);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [meta, error]);
@@ -63,7 +61,7 @@ export const PrivateRoute: React.FC = () => {
 
         // it's ready when datastore and path are finally reconciliated
         setReady(true);
-    }, [meta, loading, env, error, setEnv]);
+    }, [meta, loadingMeta, env, error, setEnv]);
 
     useEffect(() => {
         if (user) {
@@ -71,7 +69,7 @@ export const PrivateRoute: React.FC = () => {
         }
     }, [user, identify]);
 
-    if (loading || !ready) {
+    if (loadingMeta || !ready || loadingUser) {
         return null;
     }
 

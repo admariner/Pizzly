@@ -6,12 +6,20 @@ import https from 'node:https';
 import type {
     ApiKeyCredentials,
     AppCredentials,
+    AppStoreCredentials,
     BasicApiCredentials,
+    CredentialsCommon,
+    CustomCredentials,
+    OAuth2ClientCredentials,
+    TbaCredentials,
+    TableauCredentials,
+    UnauthCredentials
+} from '@nangohq/types';
+import type {
     Connection,
     ConnectionList,
     CreateConnectionOAuth1,
     CreateConnectionOAuth2,
-    CredentialsCommon,
     GetRecordsRequestConfig,
     Integration,
     IntegrationWithCreds,
@@ -26,7 +34,6 @@ import type {
     SyncStatusResponse,
     UpdateSyncFrequencyResponse
 } from './types.js';
-import { AuthModes } from './types.js';
 import { getUserAgent, validateProxyConfiguration, validateSyncRecordConfiguration } from './utils.js';
 
 export const stagingHost = 'https://api-staging.nango.dev';
@@ -51,7 +58,7 @@ export class Nango {
     providerConfigKey?: string;
     isSync = false;
     dryRun = false;
-    activityLogId?: number | string | undefined;
+    activityLogId?: string | undefined;
     userAgent: string;
     http: AxiosInstance;
 
@@ -236,13 +243,25 @@ export class Nango {
         providerConfigKey: string,
         connectionId: string,
         forceRefresh?: boolean
-    ): Promise<string | OAuth1Token | BasicApiCredentials | ApiKeyCredentials | AppCredentials> {
+    ): Promise<
+        | string
+        | OAuth1Token
+        | BasicApiCredentials
+        | ApiKeyCredentials
+        | AppCredentials
+        | OAuth2ClientCredentials
+        | AppStoreCredentials
+        | UnauthCredentials
+        | CustomCredentials
+        | TbaCredentials
+        | TableauCredentials
+    > {
         const response = await this.getConnectionDetails(providerConfigKey, connectionId, forceRefresh);
 
         switch (response.data.credentials.type) {
-            case AuthModes.OAuth2:
+            case 'OAUTH2':
                 return response.data.credentials.access_token;
-            case AuthModes.OAuth1:
+            case 'OAUTH1':
                 return { oAuthToken: response.data.credentials.oauth_token, oAuthTokenSecret: response.data.credentials.oauth_token_secret };
             default:
                 return response.data.credentials;
@@ -392,7 +411,7 @@ export class Nango {
      */
 
     /**
-     * @deprecated. Use listRecords() instead.
+     * @deprecated Use listRecords() instead.
      */
     public async getRecords<T = any>(config: GetRecordsRequestConfig): Promise<(T & { _nango_metadata: RecordMetadata })[]> {
         const { connectionId, providerConfigKey, model, delta, offset, limit, includeNangoMetadata, filter } = config;
@@ -664,7 +683,7 @@ export class Nango {
      * @param input - An optional input data for the action
      * @returns A promise that resolves with an object containing the response data from the triggered action
      */
-    public async triggerAction(providerConfigKey: string, connectionId: string, actionName: string, input?: unknown): Promise<object> {
+    public async triggerAction<In = unknown, Out = object>(providerConfigKey: string, connectionId: string, actionName: string, input?: In): Promise<Out> {
         const url = `${this.serverUrl}/action/trigger`;
 
         const headers = {
@@ -825,8 +844,8 @@ export class Nango {
      *
      * Verify incoming webhooks signature
      *
-     * @param signatureInHeader The value in the header X-Nango-Signature
-     * @param jsonPayload The HTTP body as JSON
+     * @param signatureInHeader - The value in the header X-Nango-Signature
+     * @param jsonPayload - The HTTP body as JSON
      * @returns Whether the signature is valid
      */
     public verifyWebhookSignature(signatureInHeader: string, jsonPayload: unknown): boolean {
@@ -895,7 +914,7 @@ export class Nango {
 
     /**
      * Enriches the headers with the Authorization token
-     * @param - Optional. The headers to enrich
+     * @param headers - Optional. The headers to enrich
      * @returns The enriched headers
      */
     private enrichHeaders(headers: Record<string, string | number | boolean> = {}): Record<string, string | number | boolean> {

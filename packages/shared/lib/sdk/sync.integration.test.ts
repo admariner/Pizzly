@@ -1,16 +1,18 @@
 import { expect, describe, it, beforeAll } from 'vitest';
 import { multipleMigrations } from '@nangohq/database';
 import type { Connection } from '../models/Connection.js';
+import type { NangoProps } from './sync.js';
 import { NangoAction } from './sync.js';
 import connectionService from '../services/connection.service.js';
 import environmentService from '../services/environment.service.js';
 import { createConnectionSeeds } from '../seeders/connection.seeder.js';
 import { createConfigSeeds } from '../seeders/config.seeder.js';
 import { createEnvironmentSeed } from '../seeders/environment.seeder.js';
-import type { Environment } from '../models/Environment.js';
+import type { SyncConfig } from '../models/Sync.js';
+import type { DBEnvironment } from '@nangohq/types';
 
 describe('Connection service integration tests', () => {
-    let env: Environment;
+    let env: DBEnvironment;
     beforeAll(async () => {
         await multipleMigrations();
         env = await createEnvironmentSeed();
@@ -34,11 +36,16 @@ describe('Connection service integration tests', () => {
                 throw new Error('Environment not found');
             }
 
-            const nangoProps = {
+            const nangoProps: NangoProps = {
+                scriptType: 'sync',
                 host: 'http://localhost:3003',
-                accountId: environment.account_id,
+                team: {
+                    id: environment.account_id,
+                    name: 'team'
+                },
                 connectionId: String(establishedConnection.connection_id),
                 environmentId: environment.id,
+                environmentName: environment.name,
                 providerConfigKey: String(establishedConnection?.provider_config_key),
                 provider: 'hubspot',
                 activityLogId: '1',
@@ -46,7 +53,11 @@ describe('Connection service integration tests', () => {
                 nangoConnectionId: nangoConnectionId as number,
                 syncId: 'aaa-bbb-ccc',
                 syncJobId: 2,
-                lastSyncDate: new Date()
+                lastSyncDate: new Date(),
+                syncConfig: {} as SyncConfig,
+                debug: false,
+                runnerFlags: {} as any,
+                startedAt: new Date()
             };
 
             const nango = new NangoAction(nangoProps);

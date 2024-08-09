@@ -1,7 +1,5 @@
 import type { JSONSchema7 } from 'json-schema';
 import type { HTTP_VERB, Timestamps, TimestampsAndDeleted } from './Generic.js';
-import type { NangoProps } from '../sdk/sync.js';
-import type { NangoIntegrationData } from './NangoConfig.js';
 import type { NangoConfigMetadata, NangoModel, NangoSyncEndpoint, ScriptTypeLiteral } from '@nangohq/types';
 import type { LogContext } from '@nangohq/logs';
 
@@ -14,11 +12,10 @@ export enum SyncStatus {
 }
 
 export enum SyncType {
-    INITIAL = 'INITIAL',
     INCREMENTAL = 'INCREMENTAL',
+    FULL = 'FULL',
     WEBHOOK = 'WEBHOOK',
     POST_CONNECTION_SCRIPT = 'POST_CONNECTION_SCRIPT',
-    FULL = 'FULL',
     ACTION = 'ACTION'
 }
 
@@ -54,6 +51,7 @@ export interface Job extends TimestampsAndDeleted {
     sync_id: string;
     job_id: string;
     run_id?: string | null;
+    log_id?: string | null;
     result?: SyncResultByModel;
     sync_config_id?: number;
 }
@@ -103,7 +101,7 @@ export interface SyncConfig extends TimestampsAndDeleted {
     sync_type?: SyncType | undefined;
     webhook_subscriptions: string[] | null;
     enabled: boolean;
-    models_json_schema?: JSONSchema7;
+    models_json_schema?: JSONSchema7 | null;
 }
 
 export interface SyncEndpoint extends Timestamps {
@@ -152,23 +150,4 @@ export interface SyncConfigWithProvider {
     provider_config_key: string;
     unique_key: string;
     type: ScriptTypeLiteral;
-}
-
-export interface RunScriptOptions {
-    syncConfig?: SyncConfig;
-    syncName: string;
-    syncId: string;
-    activityLogId: number | undefined;
-    nangoProps: NangoProps;
-    integrationData: Pick<NangoIntegrationData, 'fileLocation'>;
-    environmentId: number;
-    writeToDb: boolean;
-    isInvokedImmediately: boolean;
-    isWebhook: boolean;
-    optionalLoadLocation?: string | undefined;
-    input?: object | undefined;
-}
-export interface IntegrationServiceInterface {
-    runScript(options: RunScriptOptions): Promise<any>;
-    cancelScript(syncId: string, environmentId: number): Promise<void>;
 }

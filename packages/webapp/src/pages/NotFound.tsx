@@ -12,6 +12,7 @@ const VALID_PATHS = [
     'environment-settings',
     'user-settings',
     'account-settings',
+    'team-settings',
     'logs'
 ];
 
@@ -30,7 +31,7 @@ export const NotFound: React.FC = () => {
             return;
         }
 
-        navigate(`/${env}/integrations`);
+        navigate(`/${env}/`);
     }, [location, env, navigate, showInteractiveDemo]);
 
     return null;

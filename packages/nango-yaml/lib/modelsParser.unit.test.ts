@@ -79,6 +79,26 @@ describe('parse', () => {
                 Test2: { name: 'Test2', fields: [{ name: 'name', value: null, tsType: true, array: false, optional: false }] }
             });
         });
+
+        it('should handle duplicate field (ordered)', () => {
+            const parser = new ModelsParser({ raw: { Test: { __extends: 'TestBase', id: 'string' }, TestBase: { id: 'number' } } });
+            parser.parseAll();
+
+            expect(Object.fromEntries(parser.parsed)).toStrictEqual({
+                Test: { name: 'Test', fields: [{ name: 'id', value: 'string', tsType: true, array: false, optional: false }] },
+                TestBase: { name: 'TestBase', fields: [{ name: 'id', value: 'number', tsType: true, array: false, optional: false }] }
+            });
+        });
+
+        it('should handle duplicate field (unordered)', () => {
+            const parser = new ModelsParser({ raw: { Test: { id: 'string', __extends: 'TestBase' }, TestBase: { id: 'number' } } });
+            parser.parseAll();
+
+            expect(Object.fromEntries(parser.parsed)).toStrictEqual({
+                Test: { name: 'Test', fields: [{ name: 'id', value: 'string', tsType: true, array: false, optional: false }] },
+                TestBase: { name: 'TestBase', fields: [{ name: 'id', value: 'number', tsType: true, array: false, optional: false }] }
+            });
+        });
     });
 
     describe('object literal', () => {
@@ -120,7 +140,7 @@ describe('parse', () => {
             expect(Object.fromEntries(parser.parsed)).toStrictEqual({
                 Test: {
                     name: 'Test',
-                    fields: [{ name: 'sub', optional: false, tsType: true, value: 'object', array: false }]
+                    fields: [{ name: 'sub', optional: false, tsType: true, value: 'Record<string, any>', array: false }]
                 }
             });
         });
@@ -321,6 +341,13 @@ describe('parse', () => {
                 }
             });
         });
+
+        it('should throw on empty array type', () => {
+            const parser = new ModelsParser({ raw: { Test: { user: '[]' } } });
+            parser.parseAll();
+
+            expect(parser.errors).toStrictEqual([new ParserErrorTypeSyntax({ value: '[]', path: ['Test', 'user'] })]);
+        });
     });
 
     describe('typescript any', () => {
@@ -373,7 +400,7 @@ describe('parse', () => {
             const parser = new ModelsParser({ raw: { Test: { user: 'Test' } } });
             parser.parseAll();
 
-            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ name: 'Test' })]);
+            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ stack: new Set(['Test']) })]);
             expect(Object.fromEntries(parser.parsed)).toStrictEqual({
                 Test: { name: 'Test', fields: [{ name: 'user', value: 'Test', model: true, optional: false, array: false }] }
             });
@@ -383,7 +410,7 @@ describe('parse', () => {
             const parser = new ModelsParser({ raw: { Test: { user: { author: 'Test' } } } });
             parser.parseAll();
 
-            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ name: 'Test' })]);
+            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ stack: new Set(['Test']) })]);
             expect(Object.fromEntries(parser.parsed)).toStrictEqual({
                 Test: {
                     name: 'Test',
@@ -392,11 +419,32 @@ describe('parse', () => {
             });
         });
 
+        it('should handle cyclic through model', () => {
+            const parser = new ModelsParser({ raw: { Start: { ref: 'Middle' }, Middle: { ref: 'End' }, End: { ref: 'Start' } } });
+            parser.parseAll();
+
+            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ stack: new Set(['Start', 'Middle', 'End']) })]);
+            expect(Object.fromEntries(parser.parsed)).toStrictEqual({
+                End: {
+                    name: 'End',
+                    fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'Start' }]
+                },
+                Middle: {
+                    name: 'Middle',
+                    fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'End' }]
+                },
+                Start: {
+                    name: 'Start',
+                    fields: [{ array: false, model: true, name: 'ref', optional: false, value: 'Middle' }]
+                }
+            });
+        });
+
         it('should handle cyclic through array', () => {
             const parser = new ModelsParser({ raw: { Test: { user: ['Test'] } } });
             parser.parseAll();
 
-            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ name: 'Test' })]);
+            expect(parser.warnings).toStrictEqual([new ParserErrorCycle({ stack: new Set(['Test']) })]);
             expect(Object.fromEntries(parser.parsed)).toStrictEqual({
                 Test: {
                     name: 'Test',

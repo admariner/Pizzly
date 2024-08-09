@@ -26,7 +26,7 @@ import type {
 } from '@nangohq/shared';
 import { getLogger, Ok, Err, isHosted } from '@nangohq/utils';
 import { getOrchestrator, getOrchestratorClient } from '../utils/utils.js';
-import type { TbaCredentials, Environment, IntegrationConfig, Template as ProviderTemplate } from '@nangohq/types';
+import type { TbaCredentials, IntegrationConfig, Template as ProviderTemplate, DBEnvironment } from '@nangohq/types';
 import type { Result } from '@nangohq/utils';
 import type { LogContext, LogContextGetter } from '@nangohq/logs';
 import { logContextGetter } from '@nangohq/logs';
@@ -129,7 +129,7 @@ export const connectionRefreshSuccess = async ({
     config
 }: {
     connection: Connection;
-    environment: Environment;
+    environment: DBEnvironment;
     config: IntegrationConfig;
 }): Promise<void> => {
     if (!connection.id) {
@@ -142,7 +142,7 @@ export const connectionRefreshSuccess = async ({
 
     const slackNotificationService = new SlackService({ orchestratorClient: getOrchestratorClient(), logContextGetter });
 
-    void slackNotificationService.removeFailingConnection(connection, connection.connection_id, 'auth', null, environment.id, config.provider);
+    await slackNotificationService.removeFailingConnection(connection, connection.connection_id, 'auth', null, environment.id, config.provider);
 };
 
 export const connectionRefreshFailed = async ({
@@ -154,7 +154,7 @@ export const connectionRefreshFailed = async ({
     config
 }: {
     connection: Connection;
-    environment: Environment;
+    environment: DBEnvironment;
     template: ProviderTemplate;
     config: IntegrationConfig;
     authError: { type: string; description: string };
@@ -185,7 +185,7 @@ export const connectionRefreshFailed = async ({
 
     const slackNotificationService = new SlackService({ orchestratorClient: getOrchestratorClient(), logContextGetter });
 
-    void slackNotificationService.reportFailure(connection, connection.connection_id, 'auth', logCtx.id, environment.id, config.provider);
+    await slackNotificationService.reportFailure(connection, connection.connection_id, 'auth', logCtx.id, environment.id, config.provider);
 };
 
 export const connectionTest = async (
@@ -222,7 +222,9 @@ export const connectionTest = async (
         connection_id: connectionId,
         credentials,
         connection_config,
-        environment_id
+        environment_id,
+        created_at: new Date(),
+        updated_at: new Date()
     };
 
     const configBody: ApplicationConstructedProxyConfiguration = {

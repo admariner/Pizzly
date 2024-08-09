@@ -5,7 +5,6 @@ import express from 'express';
 import type { WebSocket } from 'ws';
 import { WebSocketServer } from 'ws';
 import http from 'node:http';
-import db from '@nangohq/database';
 import { NANGO_VERSION, getGlobalOAuthCallbackUrl, getServerPort, getWebsocketsPath } from '@nangohq/shared';
 import { getLogger, requestLoggerMiddleware } from '@nangohq/utils';
 import oAuthSessionService from './services/oauth-session.service.js';
@@ -21,6 +20,8 @@ const { NANGO_MIGRATE_AT_START = 'true' } = process.env;
 const logger = getLogger('Server');
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', 1);
 
 // Log all requests
 if (process.env['ENABLE_REQUEST_LOG'] !== 'false') {
@@ -39,8 +40,6 @@ const wss = new WebSocketServer({ server, path: getWebsocketsPath() });
 wss.on('connection', async (ws: WebSocket) => {
     await publisher.subscribe(ws);
 });
-
-db.enableMetrics();
 
 // Set to 'false' to disable migration at startup. Appropriate when you
 // have multiple replicas of the service running and you do not want them

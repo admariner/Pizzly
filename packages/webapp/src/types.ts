@@ -1,4 +1,4 @@
-import type { ActiveLogIds, NangoModel } from '@nangohq/types';
+import type { ActiveLogIds, NangoModel, SyncTypeLiteral, AuthModeType, NangoSyncEndpoint } from '@nangohq/types';
 
 export type SyncResult = Record<string, Result>;
 
@@ -46,6 +46,7 @@ export interface SyncResponse {
     models: string | string[];
     schedule_id: string;
     status: 'SUCCESS' | 'RUNNING' | 'STOPPED' | 'PAUSED' | 'ERROR';
+    sync_type: SyncTypeLiteral;
     latest_sync: {
         created_at: string;
         updated_at: string;
@@ -69,19 +70,6 @@ export const UserFacingSyncCommand = {
     RUN_FULL: 'run full',
     CANCEL: 'cancelled'
 };
-
-export enum AuthModes {
-    OAuth1 = 'OAUTH1',
-    OAuth2 = 'OAUTH2',
-    OAuth2CC = 'OAUTH2_CC',
-    Basic = 'BASIC',
-    ApiKey = 'API_KEY',
-    AppStore = 'APP_STORE',
-    App = 'APP',
-    Custom = 'CUSTOM',
-    None = 'NONE',
-    TBA = 'TBA'
-}
 
 export interface Connection {
     id: number;
@@ -125,23 +113,6 @@ export interface OAuth2ClientCredentials {
     client_secret: string;
 }
 
-export interface User {
-    id: number;
-    email: string;
-    name: string;
-    suspended: boolean;
-    currentUser?: boolean;
-}
-
-export interface InvitedUser {
-    id: number;
-    email: string;
-    name: string;
-    expires_at: string;
-    token: string;
-    accepted: boolean;
-}
-
 export interface PreBuiltFlow {
     provider: string;
     type: string;
@@ -173,12 +144,6 @@ export interface NangoSyncModel {
     fields: NangoSyncModelField[];
 }
 
-export type HTTP_VERB = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
-
-export type NangoSyncEndpoint = {
-    [key in HTTP_VERB]?: string;
-};
-
 export interface Flow {
     id?: number;
     attributes: Record<string, unknown>;
@@ -189,6 +154,7 @@ export interface Flow {
     is_public: boolean;
     pre_built: boolean;
     version?: string;
+    upgrade_version?: string;
     last_deployed?: string;
     input?: NangoSyncModel;
     description: string;
@@ -205,39 +171,6 @@ export interface Flow {
     webhookSubscriptions: string[];
 }
 
-export interface Environment {
-    id: number;
-    name: string;
-    account_id: number;
-    secret_key: string;
-    public_key: string;
-    secret_key_iv: string | null;
-    secret_key_tag: string | null;
-    callback_url: string;
-    webhook_url: string;
-    webhook_url_secondary: string | null;
-    webhook_receive_url: string;
-    hmac_enabled: boolean;
-    hmac_key: string;
-    created_at: string;
-    updated_at: string;
-    pending_secret_key: string | null;
-    pending_secret_key_iv: string | null;
-    pending_secret_key_tag: string | null;
-    pending_public_key: string | null;
-    always_send_webhook: boolean;
-    slack_notifications: boolean;
-    websockets_path: string;
-    secret_key_rotatable?: boolean;
-    env_variables: { id?: number; name: string; value: string }[];
-    host: string;
-    uuid: string;
-    email: string;
-    send_auth_webhook: boolean;
-    public_key_rotatable?: boolean;
-    hmac_digest?: string | null;
-}
-
 export interface IntegrationConfig {
     unique_key: string;
     provider: string;
@@ -247,7 +180,7 @@ export interface IntegrationConfig {
     has_webhook: boolean;
     has_webhook_user_defined_secret?: boolean;
     scopes: string;
-    auth_mode: AuthModes;
+    auth_mode: AuthModeType;
     created_at: string;
     webhook_secret?: string;
     custom?: Record<string, string>;

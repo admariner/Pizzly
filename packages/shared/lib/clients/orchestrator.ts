@@ -1,9 +1,9 @@
 import ms from 'ms';
 import type { StringValue } from 'ms';
 import type { LogContext, LogContextGetter } from '@nangohq/logs';
-import { Err, Ok, stringifyError, metrics } from '@nangohq/utils';
+import { Err, Ok, stringifyError, metrics, errorToObject } from '@nangohq/utils';
 import type { Result } from '@nangohq/utils';
-import { NangoError } from '../utils/error.js';
+import { NangoError, deserializeNangoError } from '../utils/error.js';
 import telemetry, { LogTypes } from '../utils/telemetry.js';
 import type { NangoConnection } from '../models/Connection.js';
 import { SYNC_TASK_QUEUE, WEBHOOK_TASK_QUEUE } from '../constants.js';
@@ -23,8 +23,6 @@ import type {
     SchedulesReturn,
     OrchestratorSchedule
 } from '@nangohq/nango-orchestrator';
-import type { Account } from '../models/Admin.js';
-import type { Environment } from '../models/Environment.js';
 import type { NangoIntegrationData, Sync, SyncConfig } from '../models/index.js';
 import { SyncCommand } from '../models/index.js';
 import tracer from 'dd-trace';
@@ -32,6 +30,7 @@ import { clearLastSyncDate } from '../services/sync/sync.service.js';
 import { isSyncJobRunning } from '../services/sync/job.service.js';
 import { getSyncConfigRaw } from '../services/sync/config/config.service.js';
 import environmentService from '../services/environment.service.js';
+import type { DBEnvironment, DBTeam } from '@nangohq/types';
 
 export interface RecordsServiceInterface {
     deleteRecordsBySyncId({ syncId }: { syncId: string }): Promise<{ totalDeletedRecords: number }>;
@@ -142,7 +141,12 @@ export class Orchestrator {
                 args
             });
 
-            const res = actionResult.mapError((e) => new NangoError('action_failure', { error: e.message, ...(e.payload ? { payload: e.payload } : {}) }));
+            const res = actionResult.mapError((err) => {
+                return (
+                    deserializeNangoError(err.payload) ||
+                    new NangoError('action_failure', { error: err.message, ...(err.payload ? { payload: err.payload } : {}) })
+                );
+            });
 
             if (res.isErr()) {
                 throw res.error;
@@ -170,12 +174,16 @@ export class Orchestrator {
             metrics.increment(metrics.Types.ACTION_SUCCESS);
             return res as Result<T, NangoError>;
         } catch (err) {
-            const errorMessage = stringifyError(err, { pretty: true });
-            const error = new NangoError('action_failure', { errorMessage });
+            let formattedError: NangoError;
+            if (err instanceof NangoError) {
+                formattedError = err;
+            } else {
+                formattedError = new NangoError('action_failure', { error: errorToObject(err) });
+            }
 
-            const content = `The action workflow ${workflowId} failed with error: ${err}`;
+            const content = `The action workflow ${workflowId} failed with error: ${stringifyError(err)}`;
 
-            await logCtx.error(content);
+            await logCtx.error(`Failed with error "${formattedError.type}"`, { error: formattedError });
 
             errorManager.report(err, {
                 source: ErrorSourceEnum.PLATFORM,
@@ -205,8 +213,8 @@ export class Orchestrator {
             );
 
             metrics.increment(metrics.Types.ACTION_FAILURE);
-            span.setTag('error', error);
-            return Err(error);
+            span.setTag('error', formattedError);
+            return Err(formattedError);
         } finally {
             const endTime = Date.now();
             const totalRunTime = (endTime - startTime) / 1000;
@@ -225,8 +233,8 @@ export class Orchestrator {
         input,
         logContextGetter
     }: {
-        account: Account;
-        environment: Environment;
+        account: DBTeam;
+        environment: DBEnvironment;
         integration: ProviderConfig;
         connection: NangoConnection;
         webhookName: string;
@@ -294,7 +302,7 @@ export class Orchestrator {
                 groupKey,
                 args
             });
-            const res = webhookResult.mapError((e) => new NangoError('action_failure', e.payload ?? { error: e.message }));
+            const res = webhookResult.mapError((e) => new NangoError('webhook_failure', e.payload ?? { error: e.message }));
 
             if (res.isErr()) {
                 throw res.error;

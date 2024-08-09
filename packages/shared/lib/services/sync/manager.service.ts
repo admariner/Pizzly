@@ -13,18 +13,17 @@ import {
 import { errorNotificationService } from '../notification/error.service.js';
 import configService from '../config.service.js';
 import type { Connection, NangoConnection } from '../../models/Connection.js';
-import type { SyncDeploymentResult, Sync, SyncType, ReportedSyncJobStatus, SyncCommand } from '../../models/Sync.js';
+import type { SyncDeploymentResult, Sync, ReportedSyncJobStatus, SyncCommand } from '../../models/Sync.js';
+import { SyncType, SyncStatus } from '../../models/Sync.js';
 import { NangoError } from '../../utils/error.js';
 import type { Config as ProviderConfig } from '../../models/Provider.js';
 import type { ServiceResponse } from '../../models/Generic.js';
-import { SyncStatus } from '../../models/Sync.js';
 import type { LogContext, LogContextGetter } from '@nangohq/logs';
 import { getLogger, stringifyError } from '@nangohq/utils';
 import environmentService from '../environment.service.js';
-import type { Environment } from '../../models/Environment.js';
 import type { Orchestrator, RecordsServiceInterface } from '../../clients/orchestrator.js';
 import type { NangoConfig, NangoIntegration, NangoIntegrationData } from '../../models/NangoConfig.js';
-import type { IncomingFlowConfig } from '@nangohq/types';
+import type { DBEnvironment, IncomingFlowConfig } from '@nangohq/types';
 
 // Should be in "logs" package but impossible thanks to CLI
 export const syncCommandToOperation = {
@@ -218,7 +217,7 @@ export class SyncManagerService {
     }: {
         recordsService: RecordsServiceInterface;
         orchestrator: Orchestrator;
-        environment: Environment;
+        environment: DBEnvironment;
         providerConfigKey: string;
         syncNames: string[];
         command: SyncCommand;
@@ -432,7 +431,7 @@ export class SyncManagerService {
         }
         return {
             id: sync.id,
-            type: latestJob?.type as SyncType,
+            type: latestJob?.type === SyncType.INCREMENTAL ? latestJob.type : 'INITIAL',
             finishedAt: latestJob?.updated_at,
             nextScheduledSyncAt: schedule.nextDueDate,
             name: sync.name,

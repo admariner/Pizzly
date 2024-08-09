@@ -3,11 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 
 import { apiFetch, useSigninAPI } from '../../utils/api';
 import { useSignin } from '../../utils/user';
-import type { WebUser, Signin } from '@nangohq/types';
-import { MANAGED_AUTH_ENABLED } from '../../utils/utils';
+import type { ApiUser, PostSignin } from '@nangohq/types';
 import DefaultLayout from '../../layout/DefaultLayout';
 import GoogleButton from '../../components/ui/button/Auth/Google';
 import Button from '../../components/ui/button/Button';
+import { globalEnv } from '../../utils/env';
 
 export default function Signin() {
     const [serverErrorMessage, setServerErrorMessage] = useState('');
@@ -31,13 +31,13 @@ export default function Signin() {
 
         if (res?.status === 200) {
             const data = await res.json();
-            const user: WebUser = data['user'];
+            const user: ApiUser = data['user'];
             signin(user);
             navigate('/');
         } else if (res?.status === 401) {
             setServerErrorMessage('Invalid email or password.');
         } else if (res?.status === 400) {
-            const errorResponse: Signin['Errors'] = (await res.json()) as Signin['Errors'];
+            const errorResponse: PostSignin['Errors'] = (await res.json()) as PostSignin['Errors'];
             if (errorResponse.error.code === 'email_not_verified') {
                 setShowResendEmail(true);
                 setEmail(target.email.value);
@@ -127,7 +127,7 @@ export default function Signin() {
                                 )}
                             </div>
 
-                            {MANAGED_AUTH_ENABLED && (
+                            {globalEnv.features.managedAuth && (
                                 <>
                                     <div className="flex items-center justify-center my-4 text-xs">
                                         <div className="border-t border-gray-600 flex-grow mr-7"></div>

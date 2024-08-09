@@ -1,18 +1,7 @@
 import type { TimestampsAndDeleted } from '../db.js';
-import type {
-    AuthCredentials,
-    ApiKeyCredentials,
-    BasicApiCredentials,
-    AppCredentials,
-    AppStoreCredentials,
-    UnauthCredentials,
-    CustomCredentials,
-    TbaCredentials,
-    AuthModeType,
-    AuthOperationType
-} from '../auth/api.js';
-import type { Environment } from '../environment/db.js';
-import type { Account } from '../account/db.js';
+import type { ApiKeyCredentials, BasicApiCredentials, AuthModeType, AuthOperationType, AllAuthCredentials } from '../auth/api.js';
+import type { DBEnvironment } from '../environment/db.js';
+import type { DBTeam } from '../team/db.js';
 
 export type Metadata = Record<string, unknown>;
 
@@ -36,23 +25,15 @@ export interface StoredConnection extends BaseConnection {
 }
 
 export interface Connection extends BaseConnection {
-    credentials:
-        | AuthCredentials
-        | ApiKeyCredentials
-        | BasicApiCredentials
-        | AppCredentials
-        | AppStoreCredentials
-        | UnauthCredentials
-        | CustomCredentials
-        | TbaCredentials;
+    credentials: AllAuthCredentials;
 }
 
 export type RecentlyCreatedConnection = Pick<StoredConnection, 'id' | 'connection_id' | 'provider_config_key'> & {
     auth_mode: AuthModeType;
     error?: string;
     operation: AuthOperationType;
-    environment: Environment;
-    account: Account;
+    environment: DBEnvironment;
+    account: DBTeam;
 };
 
 export interface ApiConnection {

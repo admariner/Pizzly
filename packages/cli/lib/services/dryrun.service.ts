@@ -1,22 +1,27 @@
 import promptly from 'promptly';
 import chalk from 'chalk';
 
-import type { NangoConnection } from '@nangohq/shared';
+import type { NangoConnection, NangoProps, RunnerOutput } from '@nangohq/shared';
 import type { Metadata, ScriptFileType } from '@nangohq/types';
-import { SyncType, cloudHost, stagingHost, SyncRunService } from '@nangohq/shared';
+import { cloudHost, stagingHost, NangoError, localFileService, validateData, NangoSync, formatScriptError, ActionError } from '@nangohq/shared';
 import type { GlobalOptions } from '../types.js';
 import { parseSecretKey, printDebug, hostport, getConnection, getConfig } from '../utils.js';
 import { compileAllFiles } from './compile.service.js';
-import integrationService from './local-integration.service.js';
-import type { RecordsServiceInterface } from '@nangohq/shared/lib/services/sync/run.service.js';
 import { parse } from './config.service.js';
+import { loadSchemaJson } from './model.service.js';
+import { displayValidationError } from '../utils/errors.js';
+import * as vm from 'node:vm';
+import * as url from 'url';
+import * as crypto from 'crypto';
+import * as zod from 'zod';
+import { Buffer } from 'buffer';
 
 interface RunArgs extends GlobalOptions {
     sync: string;
     connectionId: string;
     lastSyncDate?: string;
     useServerLastSyncDate?: boolean;
-    input?: object;
+    input?: unknown;
     metadata?: Metadata;
     optionalEnvironment?: string;
     optionalProviderConfigKey?: string;
@@ -24,11 +29,23 @@ interface RunArgs extends GlobalOptions {
 
 export class DryRunService {
     fullPath: string;
+    validation: boolean;
     environment?: string;
     returnOutput?: boolean;
 
-    constructor({ environment, returnOutput = false, fullPath }: { environment?: string; returnOutput?: boolean; fullPath: string }) {
+    constructor({
+        environment,
+        returnOutput = false,
+        fullPath,
+        validation
+    }: {
+        environment?: string;
+        returnOutput?: boolean;
+        fullPath: string;
+        validation: boolean;
+    }) {
         this.fullPath = fullPath;
+        this.validation = validation;
         if (environment) {
             this.environment = environment;
         }
@@ -182,18 +199,51 @@ export class DryRunService {
             return;
         }
 
-        let normalizedInput;
         let stubbedMetadata;
-        try {
-            normalizedInput = JSON.parse(actionInput as unknown as string);
-        } catch {
-            normalizedInput = actionInput;
+        let normalizedInput;
+
+        if (actionInput) {
+            if (actionInput.toString().includes('@') && actionInput.toString().endsWith('.json')) {
+                const fileContents = localFileService.readFile(actionInput.toString());
+                if (!fileContents) {
+                    console.log(chalk.red('The file could not be read. Please make sure it exists.'));
+                    return;
+                }
+                try {
+                    normalizedInput = JSON.parse(fileContents);
+                } catch {
+                    console.log(chalk.red('There was an issue parsing the action input file. Please make sure it is valid JSON.'));
+                    return;
+                }
+            } else {
+                try {
+                    normalizedInput = JSON.parse(actionInput as string);
+                } catch {
+                    normalizedInput = actionInput;
+                }
+            }
         }
 
-        try {
-            stubbedMetadata = JSON.parse(rawStubbedMetadata as unknown as string);
-        } catch {
-            stubbedMetadata = rawStubbedMetadata;
+        if (rawStubbedMetadata) {
+            if (rawStubbedMetadata.toString().includes('@') && rawStubbedMetadata.toString().endsWith('.json')) {
+                const fileContents = localFileService.readFile(rawStubbedMetadata.toString());
+                if (!fileContents) {
+                    console.log(chalk.red('The metadata file could not be read. Please make sure it exists.'));
+                    return;
+                }
+                try {
+                    stubbedMetadata = JSON.parse(fileContents);
+                } catch {
+                    console.log(chalk.red('There was an issue parsing the metadata file. Please make sure it is valid JSON.'));
+                    return;
+                }
+            } else {
+                try {
+                    stubbedMetadata = JSON.parse(rawStubbedMetadata as unknown as string);
+                } catch {
+                    stubbedMetadata = rawStubbedMetadata;
+                }
+            }
         }
 
         const logMessages = {
@@ -201,87 +251,121 @@ export class DryRunService {
             messages: []
         };
 
-        // dry-run mode does not read or write to the records database
-        // so we can safely mock the records service
-        const recordsService: RecordsServiceInterface = {
-            markNonCurrentGenerationRecordsAsDeleted: ({
-                connectionId: _connectionId,
-                model: _model,
-                syncId: _syncId,
-                generation: _generation
-            }: {
-                connectionId: number;
-                model: string;
-                syncId: string;
-                generation: number;
-                // eslint-disable-next-line @typescript-eslint/require-await
-            }): Promise<string[]> => {
-                return Promise.resolve([]);
-            }
-        };
-
-        const syncRun = new SyncRunService({
-            integrationService,
-            recordsService,
-            dryRunService: new DryRunService({ environment, returnOutput: true, fullPath: this.fullPath }),
-            writeToDb: false,
-            nangoConnection,
-            syncConfig: {
-                sync_name: syncName,
-                file_location: '',
-                models: [],
-                track_deletes: false,
-                type: syncInfo?.type || 'sync'
-            },
-            provider,
-            input: normalizedInput as object,
-            isAction: syncInfo?.type === 'action',
-            isPostConnectionScript,
-            syncId: 'abc',
-            syncJobId: -1,
-            syncType: SyncType.INITIAL,
-            loadLocation: './',
-            debug,
-            logMessages,
-            stubbedMetadata
-        });
+        const jsonSchema = loadSchemaJson({ fullPath: this.fullPath });
+        if (!jsonSchema) {
+            console.log(chalk.red('Failed to load schema.json'));
+            return;
+        }
 
         try {
-            const secretKey = process.env['NANGO_SECRET_KEY'];
-            const results = await syncRun.run(lastSyncDate, true, secretKey, process.env['NANGO_HOSTPORT']);
+            const syncConfig = {
+                sync_name: syncName,
+                file_location: '',
+                models: syncInfo?.output || [],
+                input: syncInfo?.input || undefined,
+                track_deletes: false,
+                type: syncInfo?.type || 'sync',
+                active: true,
+                auto_start: false,
+                enabled: true,
+                environment_id: 1,
+                model_schema: [],
+                nango_config_id: 1,
+                runs: '',
+                webhook_subscriptions: [],
+                models_json_schema: jsonSchema,
+                created_at: new Date(),
+                updated_at: new Date()
+            };
+            const nangoProps: NangoProps = {
+                scriptType: syncInfo?.type || 'sync',
+                host: process.env['NANGO_HOSTPORT'],
+                connectionId: nangoConnection.connection_id,
+                environmentId: nangoConnection.environment_id,
+                environmentName: environment,
+                providerConfigKey: nangoConnection.provider_config_key,
+                provider,
+                secretKey: process.env['NANGO_SECRET_KEY'] || '',
+                nangoConnectionId: nangoConnection.id as number,
+                syncId: 'dryrun-sync',
+                lastSyncDate: lastSyncDate as Date,
+                dryRun: true,
+                logMessages,
+                stubbedMetadata,
+                syncConfig,
+                dryRunService: new DryRunService({ environment, returnOutput: true, fullPath: this.fullPath, validation: this.validation }),
+                debug,
+                runnerFlags: {
+                    validateActionInput: this.validation, // irrelevant for cli
+                    validateActionOutput: this.validation, // irrelevant for cli
+                    validateSyncRecords: this.validation,
+                    validateSyncMetadata: false
+                },
+                startedAt: new Date()
+            };
+            console.log('---');
+            const results = await this.runScript({
+                syncName,
+                nangoProps,
+                optionalLoadLocation: './',
+                input: normalizedInput
+            });
+            console.log('---');
 
-            let resultOutput = '';
+            if (results.error) {
+                const err = results.error;
+                console.error(chalk.red('An error occurred during execution'));
+                if (err instanceof NangoError) {
+                    console.error(chalk.red(err.message), chalk.gray(`(${err.type})`));
+                    if (err.type === 'invalid_action_output' || err.type === 'invalid_action_input' || err.type === 'invalid_sync_record') {
+                        displayValidationError(err.payload as any);
+                        return;
+                    }
 
-            if (results) {
-                console.log(JSON.stringify(results, null, 2));
-                resultOutput += JSON.stringify(results, null, 2);
+                    console.error(JSON.stringify(err.payload, null, 2));
+                    return;
+                }
+
+                console.error(JSON.stringify(err, null, 2));
+                return;
             }
 
-            if (syncRun.logMessages && syncRun.logMessages.messages.length > 0) {
-                const logMessages = syncRun.logMessages.messages;
+            const resultOutput = [];
+            if (type === 'actions') {
+                if (!results.response) {
+                    console.log(chalk.gray('no output'));
+                    resultOutput.push(chalk.gray('no output'));
+                } else {
+                    console.log(JSON.stringify(results.response, null, 2));
+                    resultOutput.push(JSON.stringify(results.response, null, 2));
+                }
+            }
+
+            if (logMessages && logMessages.messages.length > 0) {
+                const messages = logMessages.messages;
                 let index = 0;
                 const batchCount = 10;
 
                 const displayBatch = () => {
-                    for (let i = 0; i < batchCount && index < logMessages.length; i++, index++) {
-                        const logs = logMessages[index];
+                    for (let i = 0; i < batchCount && index < messages.length; i++, index++) {
+                        const logs = messages[index];
                         console.log(chalk.yellow(JSON.stringify(logs, null, 2)));
-                        resultOutput += JSON.stringify(logs, null, 2);
+                        resultOutput.push(JSON.stringify(logs, null, 2));
                     }
                 };
 
-                console.log(chalk.yellow(`The dry run would produce the following results: ${JSON.stringify(syncRun.logMessages.counts, null, 2)}`));
-                resultOutput += `The dry run would produce the following results: ${JSON.stringify(syncRun.logMessages.counts, null, 2)}`;
+                console.log(chalk.yellow(`The dry run would produce the following results: ${JSON.stringify(logMessages.counts, null, 2)}`));
+                resultOutput.push(`The dry run would produce the following results: ${JSON.stringify(logMessages.counts, null, 2)}`);
                 console.log(chalk.yellow('The following log messages were generated:'));
-                resultOutput += 'The following log messages were generated:';
+                resultOutput.push('The following log messages were generated:');
 
                 displayBatch();
 
-                while (index < syncRun.logMessages.messages.length) {
-                    const remaining = syncRun.logMessages.messages.length - index;
-                    const confirmation = await promptly.confirm(
-                        `There are ${remaining} logs messages remaining. Would you like to see the next 10 log messages? (y/n)`
-                    );
+                while (index < logMessages.messages.length) {
+                    const remaining = logMessages.messages.length - index;
+                    const confirmation = options.autoConfirm
+                        ? true
+                        : await promptly.confirm(`There are ${remaining} logs messages remaining. Would you like to see the next 10 log messages? (y/n)`);
                     if (confirmation) {
                         displayBatch();
                     } else {
@@ -291,12 +375,149 @@ export class DryRunService {
             }
 
             if (this.returnOutput) {
-                return resultOutput;
+                return resultOutput.join('\n');
             }
 
             process.exit(0);
         } catch {
             process.exit(1);
+        }
+    }
+
+    async runScript({
+        syncName,
+        nangoProps,
+        optionalLoadLocation,
+        input
+    }: {
+        syncName: string;
+        nangoProps: NangoProps;
+        optionalLoadLocation: string;
+        input: object;
+    }): Promise<RunnerOutput> {
+        const nango = new NangoSync(nangoProps);
+        try {
+            await nango.log(`Executing -> integration:"${nangoProps.provider}" script:"${syncName}"`);
+
+            const script: string | null = localFileService.getIntegrationFile(syncName, nangoProps.providerConfigKey, optionalLoadLocation);
+            const isAction = nangoProps.scriptType === 'action';
+
+            if (!script) {
+                const content = `Unable to find script file for "${syncName}"`;
+                return { success: false, error: new NangoError(content, 500), response: null };
+            }
+
+            try {
+                const wrappedScript = `
+                    (function() {
+                        var module = { exports: {} };
+                        var exports = module.exports;
+                        ${script}
+                        return module.exports;
+                    })();
+                `;
+
+                const scriptObj = new vm.Script(wrappedScript);
+                const sandbox = {
+                    console,
+                    require: (moduleName: string) => {
+                        switch (moduleName) {
+                            case 'url':
+                                return url;
+                            case 'crypto':
+                                return crypto;
+                            case 'zod':
+                                return zod;
+                            case 'soap':
+                            case 'botbuilder':
+                                throw new Error(`Module '${moduleName}' not available in dry run. Please test the integration using the Nango dashboard`);
+                            default:
+                                throw new Error(`Module '${moduleName}' is not allowed`);
+                        }
+                    },
+                    Buffer,
+                    setTimeout
+                };
+
+                const context = vm.createContext(sandbox);
+                const scriptExports: any = scriptObj.runInContext(context);
+
+                if (!scriptExports.default || !(typeof scriptExports.default === 'function')) {
+                    const content = `There is no default export that is a function for ${syncName}`;
+                    return { success: false, error: new NangoError(content, 500), response: null };
+                }
+
+                if (isAction) {
+                    // Validate action input against json schema
+                    const valInput = validateData({
+                        version: nangoProps.syncConfig.version || '1',
+                        input: input,
+                        modelName: nangoProps.syncConfig.input,
+                        jsonSchema: nangoProps.syncConfig.models_json_schema
+                    });
+                    if (Array.isArray(valInput)) {
+                        await nango.log('Invalid action input. Use `--validation` option to see the details', { level: 'warn' });
+                        if (nangoProps.runnerFlags.validateActionInput) {
+                            return {
+                                success: false,
+                                response: null,
+                                error: new NangoError('invalid_action_input', { data: input, validation: valInput, model: nangoProps.syncConfig.input })
+                            };
+                        }
+                    }
+
+                    const output = await scriptExports.default(nango, input);
+
+                    // Validate action output against json schema
+                    const modelNameOutput = nangoProps.syncConfig.models.length > 0 ? nangoProps.syncConfig.models[0] : undefined;
+                    const valOutput = validateData({
+                        version: nangoProps.syncConfig.version || '1',
+                        input: output,
+                        modelName: modelNameOutput,
+                        jsonSchema: nangoProps.syncConfig.models_json_schema
+                    });
+                    if (Array.isArray(valOutput)) {
+                        await nango.log('Invalid action output. Use `--validation` option to see the details', { level: 'warn' });
+                        if (nangoProps.runnerFlags.validateActionOutput) {
+                            return {
+                                success: false,
+                                response: null,
+                                error: new NangoError('invalid_action_output', { data: output, validation: valOutput, model: modelNameOutput })
+                            };
+                        }
+                    }
+
+                    return { success: true, error: null, response: output };
+                }
+
+                const results = await scriptExports.default(nango);
+                return { success: true, error: null, response: results };
+            } catch (err) {
+                if (err instanceof ActionError) {
+                    return {
+                        success: false,
+                        error: {
+                            type: err.type,
+                            payload: err.payload || {},
+                            status: 500
+                        },
+                        response: null
+                    };
+                } else if (err instanceof NangoError) {
+                    return { success: false, error: err, response: null };
+                }
+
+                const errorType = isAction ? 'action_script_failure' : 'sync_script_failure';
+
+                return formatScriptError(err, errorType, syncName);
+            }
+        } catch (err) {
+            const errorMessage = JSON.stringify(err, ['message', 'name', 'stack'], 2);
+            const content = `The script failed to load for ${syncName} with the following error: ${errorMessage}`;
+
+            return { success: false, error: new NangoError(content, 500), response: null };
+        } finally {
+            await nango.log(`Done`);
         }
     }
 }

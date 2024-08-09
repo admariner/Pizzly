@@ -1,6 +1,5 @@
 import type { Request, Response, NextFunction } from 'express';
-import type { Environment } from '@nangohq/shared';
-import type { EnvironmentVariable, ExternalWebhook } from '@nangohq/types';
+import type { DBEnvironment, DBEnvironmentVariable, ExternalWebhook } from '@nangohq/types';
 import { isCloud, baseUrl } from '@nangohq/utils';
 import {
     accountService,
@@ -11,27 +10,15 @@ import {
     getWebsocketsPath,
     getOauthCallbackUrl,
     getGlobalWebhookReceiveUrl,
-    getOnboardingProgress,
-    userService,
     generateSlackConnectionId,
-    externalWebhookService,
-    NANGO_VERSION
+    externalWebhookService
 } from '@nangohq/shared';
 import { NANGO_ADMIN_UUID } from './account.controller.js';
 import type { RequestLocals } from '../utils/express.js';
 
-export interface GetMeta {
-    environments: Pick<Environment, 'name'>[];
-    email: string;
-    version: string;
-    baseUrl: string;
-    debugMode: boolean;
-    onboardingComplete: boolean;
-}
-
 export interface EnvironmentAndAccount {
-    environment: Environment;
-    env_variables: EnvironmentVariable[];
+    environment: DBEnvironment;
+    env_variables: DBEnvironmentVariable[];
     webhook_settings: ExternalWebhook | null;
     host: string;
     uuid: string;
@@ -40,35 +27,6 @@ export interface EnvironmentAndAccount {
 }
 
 class EnvironmentController {
-    async meta(req: Request, res: Response<GetMeta, never>, next: NextFunction) {
-        try {
-            const sessionUser = req.user;
-            if (!sessionUser) {
-                errorManager.errRes(res, 'user_not_found');
-                return;
-            }
-
-            const user = await userService.getUserById(sessionUser.id);
-            if (!user) {
-                errorManager.errRes(res, 'user_not_found');
-                return;
-            }
-
-            const environments = await environmentService.getEnvironmentsByAccountId(user.account_id);
-            const onboarding = await getOnboardingProgress(sessionUser.id);
-            res.status(200).send({
-                environments,
-                version: NANGO_VERSION,
-                email: sessionUser.email,
-                baseUrl,
-                debugMode: req.session.debugMode === true,
-                onboardingComplete: onboarding?.complete || false
-            });
-        } catch (err) {
-            next(err);
-        }
-    }
-
     async getEnvironment(_: Request, res: Response<any, Required<RequestLocals>>, next: NextFunction) {
         try {
             const { environment, account, user } = res.locals;

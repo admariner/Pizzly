@@ -3,11 +3,10 @@ import { Prism } from '@mantine/prism';
 import { Loading } from '@geist-ui/core';
 
 import PrismPlus from '../../components/ui/prism/PrismPlus';
-import { AuthModes } from '../../types';
 import type { Connection } from '@nangohq/types';
 import { formatDateToShortUSFormat } from '../../utils/utils';
 import SecretInput from '../../components/ui/input/SecretInput';
-import CopyButton from '../../components/ui/button/CopyButton';
+import { CopyButton } from '../../components/ui/button/CopyButton';
 import TagsInput from '../../components/ui/input/TagsInput';
 
 interface AuthorizationProps {
@@ -36,7 +35,7 @@ export default function Authorization(props: AuthorizationProps) {
                     <span className="text-gray-400 text-xs uppercase mb-1">Connection ID</span>
                     <div className="flex items-center gap-2">
                         <span className="text-white break-all">{connection.connection_id}</span>
-                        <CopyButton text={connection.connection_id} dark />
+                        <CopyButton text={connection.connection_id} />
                     </div>
                 </div>
                 {connection.created_at && (
@@ -51,7 +50,7 @@ export default function Authorization(props: AuthorizationProps) {
                     <span className="text-gray-400 text-xs uppercase mb-2">Auth Type</span>
                     <span className="text-white">{connection.credentials.type || 'None'}</span>
                 </div>
-                {connection.credentials && connection.credentials.type === AuthModes.ApiKey && 'apiKey' in connection.credentials && (
+                {connection.credentials && connection.credentials.type === 'API_KEY' && 'apiKey' in connection.credentials && (
                     <div className="flex flex-col w-1/2">
                         <span className="text-gray-400 text-xs uppercase mb-1">{connection.credentials.type}</span>
                         <SecretInput disabled defaultValue={connection.credentials.apiKey} copy={true} />
@@ -64,7 +63,7 @@ export default function Authorization(props: AuthorizationProps) {
                     </div>
                 )}
             </div>
-            {connection.credentials && connection.credentials.type === AuthModes.Basic && 'password' in connection.credentials && (
+            {connection.credentials && connection.credentials.type === 'BASIC' && 'password' in connection.credentials && (
                 <div className="flex">
                     {connection?.credentials.username && (
                         <div className="flex flex-col w-1/2">
@@ -129,43 +128,66 @@ export default function Authorization(props: AuthorizationProps) {
                     />
                 </div>
             )}
+            {connection.credentials.type === 'TABLEAU' && connection.credentials.pat_name && (
+                <div className="flex flex-col">
+                    <span className="text-gray-400 text-xs uppercase mb-1">PAT NAME</span>
+                    <SecretInput disabled defaultValue={connection.credentials.pat_name} copy={true} />
+                </div>
+            )}
+            {connection.credentials.type === 'TABLEAU' && connection.credentials.pat_secret && (
+                <div className="flex flex-col">
+                    <span className="text-gray-400 text-xs uppercase mb-1">PAT SECRET</span>
+                    <SecretInput disabled defaultValue={connection.credentials.pat_secret} copy={true} />
+                </div>
+            )}
+            {connection.credentials.type === 'TABLEAU' && connection.credentials.content_url && (
+                <div className="flex flex-col">
+                    <span className="text-gray-400 text-xs uppercase mb-1">CONTENT URL</span>
+                    <SecretInput disabled defaultValue={connection.credentials.content_url} copy={true} />
+                </div>
+            )}
             {connection.credentials && 'token' in connection.credentials && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">Token</span>
                     <SecretInput disabled value={refreshing ? 'Refreshing...' : connection.credentials.token} copy={true} refresh={handleForceRefresh} />
                 </div>
             )}
-            {(connection.credentials.type === AuthModes.OAuth2 || connection.credentials.type === AuthModes.App) && connection.credentials.access_token && (
+            {(connection.credentials.type === 'OAUTH2' || connection.credentials.type === 'APP') && connection.credentials.access_token && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">Access Token</span>
-                    <SecretInput disabled value={refreshing ? 'Refreshing...' : connection.credentials.access_token} copy={true} refresh={handleForceRefresh} />
+                    <SecretInput
+                        disabled
+                        value={refreshing ? 'Refreshing...' : connection.credentials.access_token}
+                        copy={true}
+                        refresh={connection.credentials.type === 'OAUTH2' && connection.credentials.refresh_token ? handleForceRefresh : undefined}
+                    />
                 </div>
             )}
-            {connection.credentials.type === AuthModes.OAuth1 && connection.credentials.oauth_token && (
+            {connection.credentials.type === 'OAUTH1' && connection.credentials.oauth_token && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">OAuth Token</span>
                     <SecretInput disabled defaultValue={connection.credentials.oauth_token} copy={true} />
                 </div>
             )}
-            {connection.credentials.type === AuthModes.OAuth1 && connection.credentials.oauth_token_secret && (
+            {connection.credentials.type === 'OAUTH1' && connection.credentials.oauth_token_secret && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">OAuth Token Secret</span>
                     <SecretInput disabled defaultValue={connection.credentials.oauth_token_secret} copy={true} />
                 </div>
             )}
-            {connection.credentials.type === AuthModes.TBA && connection.credentials.token_id && (
+            {connection.credentials.type === 'TBA' && connection.credentials.token_id && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">Token Id</span>
                     <SecretInput disabled defaultValue={connection.credentials.token_id} copy={true} />
                 </div>
             )}
-            {connection.credentials.type === AuthModes.TBA && connection.credentials.token_secret && (
+            {connection.credentials.type === 'TBA' && connection.credentials.token_secret && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">Token Secret</span>
                     <SecretInput disabled defaultValue={connection.credentials.token_secret} copy={true} />
                 </div>
             )}
-            {connection.credentials.type === AuthModes.OAuth2 && connection.credentials.refresh_token && (
+            {connection.credentials.type === 'OAUTH2' && connection.credentials.refresh_token && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-1">Refresh Token</span>
                     <SecretInput disabled value={refreshing ? 'Refreshing...' : connection.credentials.refresh_token} copy={true} />
@@ -183,10 +205,10 @@ export default function Authorization(props: AuthorizationProps) {
                     {JSON.stringify(connection.metadata, null, 4) || '{}'}
                 </Prism>
             </div>
-            {(connection.credentials.type === AuthModes.OAuth1 ||
-                connection.credentials.type === AuthModes.OAuth2 ||
-                connection.credentials.type === AuthModes.App ||
-                connection.credentials.type === AuthModes.Custom) && (
+            {(connection.credentials.type === 'OAUTH1' ||
+                connection.credentials.type === 'OAUTH2' ||
+                connection.credentials.type === 'APP' ||
+                connection.credentials.type === 'CUSTOM') && (
                 <div className="flex flex-col">
                     <span className="text-gray-400 text-xs uppercase mb-2">Raw Token Response</span>
                     <PrismPlus language="json" colorScheme="dark">

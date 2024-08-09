@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { isError, isSuccess, runServer, shouldBeProtected } from '../../../utils/tests.js';
 import { getSyncConfigsAsStandardConfig, seeders } from '@nangohq/shared';
 import { envs } from '@nangohq/logs';
-import type { Environment } from '@nangohq/types';
+import type { DBEnvironment } from '@nangohq/types';
 
 let api: Awaited<ReturnType<typeof runServer>>;
 
@@ -80,7 +80,7 @@ describe(`POST ${endpoint}`, () => {
     });
 
     describe('deploy', () => {
-        let env: Environment;
+        let env: DBEnvironment;
         // This describe must be executed in order
 
         it('should deploy', async () => {
@@ -95,7 +95,11 @@ describe(`POST ${endpoint}`, () => {
                     jsonSchema: {
                         $comment: '',
                         $schema: 'http://json-schema.org/draft-07/schema#',
-                        definitions: {}
+                        definitions: {
+                            Input: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'], additionalProperties: false },
+                            Output: { type: 'object', properties: { ref: { $ref: '#/definitions/Ref' } }, required: ['ref'], additionalProperties: false },
+                            Ref: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
+                        }
                     },
                     flowConfigs: [
                         {
@@ -113,14 +117,9 @@ describe(`POST ${endpoint}`, () => {
                             input: 'Input',
                             models: ['Output'],
                             model_schema: [
-                                {
-                                    name: 'Input',
-                                    fields: [{ name: 'id', value: 'number', tsType: true, array: false, optional: false }]
-                                },
-                                {
-                                    name: 'Output',
-                                    fields: [{ name: 'id', value: 'number', tsType: true, array: false, optional: false }]
-                                }
+                                { name: 'Input', fields: [{ name: 'id', value: 'number', tsType: true, array: false, optional: false }] },
+                                { name: 'Output', fields: [{ name: 'ref', value: 'Ref', model: true, array: false, optional: false }] },
+                                { name: 'Ref', fields: [{ name: 'id', value: 'string', tsType: true, array: false, optional: false }] }
                             ]
                         }
                     ],
@@ -133,7 +132,9 @@ describe(`POST ${endpoint}`, () => {
 
             isSuccess(res.json);
 
-            expect(res.json).toStrictEqual<typeof res.json>([{ models: ['Output'], name: 'test', providerConfigKey: 'unauthenticated', type: 'sync' }]);
+            expect(res.json).toStrictEqual<typeof res.json>([
+                { models: ['Output'], name: 'test', providerConfigKey: 'unauthenticated', type: 'sync', version: '1' }
+            ]);
             expect(res.res.status).toBe(200);
 
             // Check that everything was inserted in DB
@@ -161,14 +162,9 @@ describe(`POST ${endpoint}`, () => {
                             last_deployed: expect.toBeIsoDate(),
                             layout_mode: 'nested',
                             models: [
-                                {
-                                    fields: [{ array: false, name: 'id', optional: false, tsType: true, value: 'number' }],
-                                    name: 'Input'
-                                },
-                                {
-                                    fields: [{ array: false, name: 'id', optional: false, tsType: true, value: 'number' }],
-                                    name: 'Output'
-                                }
+                                { name: 'Input', fields: [{ array: false, name: 'id', optional: false, tsType: true, value: 'number' }] },
+                                { name: 'Output', fields: [{ array: false, name: 'ref', optional: false, model: true, value: 'Ref' }] },
+                                { name: 'Ref', fields: [{ name: 'id', value: 'string', tsType: true, array: false, optional: false }] }
                             ],
                             returns: ['Output'],
                             nango_yaml_version: 'v2',
@@ -180,7 +176,19 @@ describe(`POST ${endpoint}`, () => {
                             track_deletes: false,
                             type: 'sync',
                             version: '1',
-                            webhookSubscriptions: []
+                            webhookSubscriptions: [],
+                            json_schema: {
+                                definitions: {
+                                    Input: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'], additionalProperties: false },
+                                    Output: {
+                                        type: 'object',
+                                        properties: { ref: { $ref: '#/definitions/Ref' } },
+                                        required: ['ref'],
+                                        additionalProperties: false
+                                    },
+                                    Ref: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false }
+                                }
+                            }
                         }
                     ]
                 }

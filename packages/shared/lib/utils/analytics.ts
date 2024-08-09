@@ -1,14 +1,14 @@
 import { PostHog } from 'posthog-node';
 import { localhostUrl, isCloud, isStaging, baseUrl } from '@nangohq/utils';
 import { UserType } from '../utils/utils.js';
-import ip from 'ip';
 import errorManager, { ErrorSourceEnum } from './error.manager.js';
 import accountService from '../services/account.service.js';
 import environmentService from '../services/environment.service.js';
 import userService from '../services/user.service.js';
-import type { Account, User } from '../models/Admin.js';
+import type { User } from '../models/Admin.js';
 import { LogActionEnum } from '../models/Telemetry.js';
 import { NANGO_VERSION } from '../version.js';
+import type { DBTeam } from '@nangohq/types';
 
 export enum AnalyticsTypes {
     ACCOUNT_CREATED = 'server:account_created',
@@ -16,6 +16,7 @@ export enum AnalyticsTypes {
     API_CONNECTION_INSERTED = 'server:api_key_connection_inserted',
     API_CONNECTION_UPDATED = 'server:api_key_connection_updated',
     TBA_CONNECTION_INSERTED = 'server:tba_connection_inserted',
+    TABLEAU_CONNECTION_INSERTED = 'server:tableau_connection_inserted',
     CONFIG_CREATED = 'server:config_created',
     CONNECTION_INSERTED = 'server:connection_inserted',
     CONNECTION_LIST_FETCHED = 'server:connection_list_fetched',
@@ -95,11 +96,11 @@ class Analytics {
             eventProperties['nango-server-version'] = this.packageVersion || 'unknown';
 
             if (isCloud && accountId != null) {
-                const account: Account | null = await accountService.getAccountById(accountId);
+                const account: DBTeam | null = await accountService.getAccountById(accountId);
                 if (account !== null && account.id !== undefined) {
-                    const users: User[] | null = await userService.getUsersByAccountId(account.id);
+                    const users: User[] = await userService.getUsersByAccountId(account.id);
 
-                    if (users) {
+                    if (users.length > 0) {
                         userProperties['email'] = users.map((user) => user.email).join(',');
                         userProperties['name'] = users.map((user) => user.name).join(',');
                     }
@@ -149,7 +150,7 @@ class Analytics {
     public getUserIdWithType(userType: string, accountId: number, baseUrl: string): string {
         switch (userType) {
             case UserType.Local:
-                return `${userType}-${ip.address()}`;
+                return `${userType}-local`;
             case UserType.SelfHosted:
                 return `${userType}-${baseUrl}`;
             case UserType.Cloud:

@@ -56,8 +56,9 @@ function convertSyncConfigToStandardConfig(syncConfigs: ExtendedSyncConfig[]): S
             enabled: syncConfig.enabled,
             layout_mode: 'nested',
             models: syncConfig.model_schema as any,
-            last_deployed: syncConfig.updated_at!.toISOString(),
-            webhookSubscriptions: syncConfig.webhook_subscriptions || []
+            last_deployed: syncConfig.updated_at.toISOString(),
+            webhookSubscriptions: syncConfig.webhook_subscriptions || [],
+            json_schema: syncConfig.models_json_schema || null
         };
 
         if (syncConfig.type === 'sync') {

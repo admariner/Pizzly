@@ -1,43 +1,27 @@
 import type { ApiError, Endpoint } from '../api';
-import type { WebUser } from '../user/api';
+import type { ApiUser } from '../user/api';
 
-export type Signup = Endpoint<{
+export type PostSignup = Endpoint<{
     Method: 'POST';
     Path: '/api/v1/account/signup';
     Body: {
         email: string;
         name: string;
         password: string;
+        token?: string | undefined;
     };
     Error:
         | ApiError<'email_already_verified'>
         | ApiError<'error_creating_user'>
         | ApiError<'user_already_exists'>
         | ApiError<'error_creating_account'>
+        | ApiError<'invalid_invite_token'>
         | ApiError<'email_not_verified'>;
     Success: {
-        uuid: string;
-    };
-}>;
-
-export type SignupWithToken = Endpoint<{
-    Method: 'POST';
-    Path: '/api/v1/account/signup/token';
-    Body: {
-        email: string;
-        name: string;
-        password: string;
-        token: string;
-        accountId: number;
-    };
-    Error:
-        | ApiError<'error_creating_user'>
-        | ApiError<'user_already_exists'>
-        | ApiError<'invalid_invite_token'>
-        | ApiError<'error_logging_in'>
-        | ApiError<'invalid_account_id'>;
-    Success: {
-        user: WebUser;
+        data: {
+            uuid: string;
+            verified: boolean;
+        };
     };
 }>;
 
@@ -49,7 +33,7 @@ export type ValidateEmailAndLogin = Endpoint<{
     };
     Error: ApiError<'error_logging_in'> | ApiError<'error_validating_user'> | ApiError<'token_expired'> | ApiError<'error_refreshing_token'>;
     Success: {
-        user: WebUser;
+        user: ApiUser;
     };
 }>;
 
@@ -96,7 +80,7 @@ export type GetEmailByExpiredToken = Endpoint<{
     };
 }>;
 
-export type Signin = Endpoint<{
+export type PostSignin = Endpoint<{
     Method: 'POST';
     Path: '/api/v1/account/signin';
     Body: {
@@ -105,6 +89,60 @@ export type Signin = Endpoint<{
     };
     Error: ApiError<'email_not_verified'> | ApiError<'unauthorized'>;
     Success: {
-        user: WebUser;
+        user: ApiUser;
+    };
+}>;
+
+export type PostForgotPassword = Endpoint<{
+    Method: 'PUT';
+    Path: '/api/v1/account/forgot-password';
+    Body: {
+        email: string;
+    };
+    Error: ApiError<'user_not_found'>;
+    Success: {
+        success: true;
+    };
+}>;
+
+export type PutResetPassword = Endpoint<{
+    Method: 'PUT';
+    Path: '/api/v1/account/reset-password';
+    Body: {
+        token: string;
+        password: string;
+    };
+    Error: ApiError<'user_not_found'> | ApiError<'invalid_token'>;
+    Success: {
+        success: true;
+    };
+}>;
+
+export type PostManagedSignup = Endpoint<{
+    Method: 'POST';
+    Path: '/api/v1/account/managed/signup';
+    Body: {
+        provider: 'GoogleOAuth';
+        token?: string | undefined;
+    };
+    Success: {
+        data: {
+            url: string;
+        };
+    };
+}>;
+
+export type GetManagedCallback = Endpoint<{
+    Method: 'GET';
+    Path: '/api/v1/login/callback';
+    Querystring: {
+        code: string;
+        state?: string | undefined;
+    };
+    Error: ApiError<'error_creating_user'> | ApiError<'user_already_exists'> | ApiError<'error_creating_account'>;
+    Success: {
+        data: {
+            url: string;
+        };
     };
 }>;

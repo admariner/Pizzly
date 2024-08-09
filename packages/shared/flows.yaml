@@ -16,6 +16,126 @@ integrations:
                 name: string
                 company: string
                 email: string
+    anrok:
+        actions:
+            create-ephemeral-transaction:
+                description: |
+                    Creates an ephemeral transaction in Anrok.
+                input: Transaction
+                output: TransactionActionResponse
+                endpoint: POST /ephmeral-transaction
+            create-or-update-transaction:
+                description: |
+                    Creates or updates a transaction in Anrok.
+                input: Transaction[]
+                output: TransactionActionResponse
+                endpoint: POST /transaction
+            void-transaction:
+                description: |
+                    Voids a transaction in Anrok.
+                input: TransactionToDelete[]
+                output: TransactionDeletionActionResponse
+                endpoint: POST /transaction/voide
+            negate-transaction:
+                description: |
+                    Creates a negation in Anrok.
+                input: TransactionToNegate[]
+                output: TransactionNegationActionResponse
+                endpoint: POST /transaction/negate
+        models:
+            AnrokAddress:
+                line1: string
+                city: string
+                postalCode: string
+                country: string
+            AnrokLineItems:
+                id: string
+                productExternalId: string
+                amount: number
+            AnrokTaxIds:
+                type: string
+                value: string
+            AnrokTransactionData:
+                id?: string | undefined
+                accountingDate: string
+                currencyCode: string
+                customerId: string
+                customerName: string
+                customerAddress: AnrokAddress
+                lineItems: AnrokLineItems[]
+                customerTaxIds?: AnrokTaxIds[]
+            AnrokContact:
+                external_id: string
+                name: string
+                address_line_1: string
+                city: string
+                zip: string
+                country: string
+                taxable: boolean
+                tax_number: string
+            BaseTransaction:
+                id?: string | undefined
+                issuing_date: string
+                currency: string
+                contact: AnrokContact
+            Transaction:
+                id?: string | undefined
+                issuing_date: string
+                currency: string
+                contact: AnrokContact
+                fees: TransactionFee[]
+            TransactionFee:
+                item_id: string
+                item_code: string | null
+                amount_cents: number | null
+            TaxBreakdown:
+                name?: string
+                rate?: string
+                tax_amount?: number
+                type?: string | null
+                reason?: string
+            FailedTransaction:
+                id?: string | undefined
+                issuing_date: string
+                currency: string
+                contact: AnrokContact
+                fees: TransactionFee[]
+                validation_errors: any[]
+            SuccessTransaction:
+                id?: string | undefined
+                issuing_date: string
+                currency: string
+                contact: AnrokContact
+                fees: TransactionFee[]
+                sub_total_excluding_taxes?: number
+                taxes_amount_cents?: number
+            TransactionActionResponse:
+                succeeded: SuccessTransaction[]
+                failed: FailedTransaction[]
+            TransactionToNegate:
+                id: string
+                voided_id: string
+            TransactionToDelete:
+                id: string
+            TransactionNegationActionResponse:
+                succeeded: TransactionToNegate[]
+                failed: FailedTransactionToNegate[]
+            TransactionDeletionActionResponse:
+                succeeded: TransactionToDelete[]
+                failed: FailedTransactionToDelete[]
+            FailedTransactionToDelete:
+                id: string
+                validation_errors: any[]
+            FailedTransactionToNegate:
+                id: string
+                voided_id: string
+                validation_errors: any[]
+            TransactionFeeWithTaxBreakdown:
+                item_id: string
+                item_code: string | null
+                amount_cents: number | null
+                tax_amount_cents: number
+                tax_breakdown: TaxBreakdown[]
     asana:
         syncs:
             tasks:
@@ -371,20 +491,39 @@ integrations:
                 description: |
                     Action to create a new employee
                 output: BamboohrCreateEmployeeResponse
-                input: BamboohrEmployee
+                input: BamboohrCreateEmployee
                 endpoint: POST /bamboohr/create-employee
+                version: 1.0.0
+            update-employee:
+                endpoint: PUT /bamboohr/employee
+                input: BamboohrUpdateEmployee
+                output: BamboohrResponseStatus
+                description: Update an existing employee in the system
+            fetch-fields:
+                endpoint: GET /bamboohr/fields
+                output: BamboohrField[]
+                description: Introspection to retrieve available fields
         models:
+            BamboohrField:
+                id: string
+                type: string
+                name: string
+                alias?: string
+                options?: Option[]
+            Option:
+                id: number
+                name: string
             BamboohrEmployee:
                 id: string
                 employeeNumber: string
                 firstName: string
                 lastName: string
-                dateOfBirth: date
+                dateOfBirth: string
                 address1: string
                 bestEmail: string
                 workEmail: string
                 jobTitle: string
-                hireDate: date
+                hireDate: string
                 supervisorId: string
                 supervisor: string
                 createdByUserId: string
@@ -404,7 +543,69 @@ integrations:
                 ssn: string
                 workPhone: string
                 homePhone: string
+            BamboohrCreateEmployee:
+                firstName: string
+                lastName: string
+                employeeNumber?: string
+                dateOfBirth?: string
+                address1?: string
+                bestEmail?: string
+                workEmail?: string
+                jobTitle?: string
+                hireDate?: string
+                supervisorId?: string
+                supervisor?: string
+                createdByUserId?: string
+                department?: string
+                division?: string
+                employmentHistoryStatus?: string
+                gender?: string
+                country?: string
+                city?: string
+                location?: string
+                state?: string
+                maritalStatus?: string
+                exempt?: string
+                payRate?: string
+                payType?: string
+                payPer?: string
+                ssn?: string
+                workPhone?: string
+                homePhone?: string
+            BamboohrUpdateEmployee:
+                id: string
+                firstName?: string
+                lastName?: string
+                employeeNumber?: string
+                dateOfBirth?: string
+                address1?: string
+                bestEmail?: string
+                workEmail?: string
+                jobTitle?: string
+                hireDate?: string
+                supervisorId?: string
+                supervisor?: string
+                createdByUserId?: string
+                department?: string
+                division?: string
+                employmentHistoryStatus?: string
+                gender?: string
+                country?: string
+                city?: string
+                location?: string
+                state?: string
+                maritalStatus?: string
+                exempt?: string
+                payRate?: string
+                payType?: string
+                payPer?: string
+                ssn?: string
+                workPhone?: string
+                homePhone?: string
             BamboohrCreateEmployeeResponse:
+                status: string
+                id: string
+            BamboohrResponseStatus:
                 status: string
     calendly:
         syncs:
@@ -593,6 +794,7 @@ integrations:
             UtilityAnyType:
                 __string: any
             Location:
+                city?: string
                 country: string
                 state?: string
             Candidate:
@@ -619,8 +821,12 @@ integrations:
                 adjudication: string
                 metadata: UtilityAnyType
             CreateCandidate:
+                city?: string
+                country: string
+                state?: string
                 first_name: string
                 middle_name?: string
+                no_middle_name?: boolean
                 last_name: string
                 email: string
                 phone: string
@@ -671,11 +877,12 @@ integrations:
                 service_key: string
                 deleted_at: string | null
             TriggerBackgroundCheckInput:
+                city?: string
+                country: string
+                state?: string
                 service_key: string
                 candidate_id: string
                 node?: string
-                country: string
-                state?: string
                 tags?: string[]
             BackgroundCheckParameterResponse:
                 parameters: BackgroundCheckParameters[]
@@ -891,6 +1098,161 @@ integrations:
                 id: string
                 title: string
                 name: string
+    exact-online:
+        syncs:
+            customers:
+                version: 1.0.0
+                description: |
+                    Fetches all customers in Exact Online
+                runs: every hour
+                output: ExactCustomer
+                sync_type: full
+                auto_start: true
+                endpoint: GET /customers
+                track_deletes: true
+            payments:
+                version: 1.0.0
+                description: |
+                    Fetches all payments in Exact Online
+                runs: every hour
+                output: ExactPayment
+                sync_type: full
+                auto_start: true
+                endpoint: GET /payments
+                track_deletes: true
+        actions:
+            create-customer:
+                version: 1.0.0
+                description: |
+                    Creates a customer in ExactOnline
+                input: ExactCustomerCreateInput
+                output: ExactCustomerCreateOutput
+                endpoint: POST /customers
+            update-customer:
+                version: 1.0.0
+                description: |
+                    Updates a customer in ExactOnline
+                input: ExactCustomerUpdateInput
+                output: ExactCustomerUpdateOutput
+                endpoint: PUT /customers
+            create-invoice:
+                version: 1.0.0
+                description: |
+                    Creates an invoice in ExactOnline
+                input: ExactInvoiceCreateInput
+                output: ExactInvoiceCreateOutput
+                endpoint: POST /invoices
+            update-invoice:
+                version: 1.0.0
+                description: |
+                    Updates an invoice in ExactOnline
+                input: ExactInvoiceUpdateInput
+                output: ExactInvoiceUpdateOutput
+                endpoint: PUT /invoices
+            attach-file-invoice:
+                version: 1.0.0
+                description: |
+                    Uploads a file to ExactOnline and link it to an invoice
+                input: ExactInvoiceAttachFileInput
+                output: ExactInvoiceAttachFileOutput
+                endpoint: POST /invoices/attach-file
+        models:
+            ExactCustomer:
+                id: string
+                division: number | null
+                name: string
+                email: string | null
+                taxNumber: string | null
+                addressLine1: string | null
+                addressLine2: string | null
+                city: string | null
+                zip: string | null
+                country: string | null
+                state: string | null
+                phone: string | null
+            ExactCustomerCreateBase:
+                name: string
+                email?: string | null
+                taxNumber?: string | null
+                addressLine1?: string | null
+                addressLine2?: string | null
+                city?: string | null
+                zip?: string | null
+                country?: string | null
+                state?: string | null
+                phone?: string | null
+            ExactCustomerCreateInput:
+                name: string
+                email?: string | null
+                taxNumber?: string | null
+                addressLine1?: string | null
+                addressLine2?: string | null
+                city?: string | null
+                zip?: string | null
+                country?: string | null
+                state?: string | null
+                phone?: string | null
+            ExactCustomerCreateOutput:
+                id: string
+            ExactCustomerUpdateInput:
+                name: string
+                email?: string | null
+                taxNumber?: string | null
+                addressLine1?: string | null
+                addressLine2?: string | null
+                city?: string | null
+                zip?: string | null
+                country?: string | null
+                state?: string | null
+                phone?: string | null
+                id: string
+                name?: string | null
+            ExactCustomerUpdateOutput:
+                success: boolean
+            ExactPayment:
+                id: string
+                description: string | null
+                division: number | null
+                customerId: string | null
+                amount: number | null
+                createdAt: string | null
+                currency: string | null
+                journal: string | null
+                paymentMethod: string | null
+                paymentReference: string | null
+                status: number | null
+                transactionID: string | null
+            ExactInvoiceLine:
+                itemId: string
+                quantity: number
+                amountNet: number
+                vatCode?: string
+                description?: string
+            ExactInvoiceCreateInput:
+                customerId: string
+                journal: number
+                currency?: EUR
+                description?: string
+                createdAt?: date
+                lines: ExactInvoiceLine[]
+            ExactInvoiceCreateOutput:
+                id: string
+            ExactInvoiceUpdateInput:
+                id: string
+                deliverTo?: string
+                currency?: EUR
+                description?: string
+                createdAt?: date
+            ExactInvoiceUpdateOutput:
+                success: boolean
+            ExactInvoiceAttachFileInput:
+                invoiceId: string
+                customerId: string
+                subject: string
+                filename: string
+                content: string
+            ExactInvoiceAttachFileOutput:
+                success: boolean
     expensify:
         actions:
             list-policies:
@@ -2285,6 +2647,55 @@ integrations:
                 updatedAt: date
                 teamId: string
                 projectIds: string
+    luma:
+        syncs:
+            list-events:
+                description: >
+                    This sync will be used to sync all of the events managed by your
+                    Calendar. See https://docs.lu.ma/reference/calendar-list-events for
+                    more details.
+                endpoint: GET /luma/list-events
+                sync_type: incremental
+                runs: every day
+                output: Event
+        models:
+            Timestamps:
+                created_at: string
+                start_at: string
+                end_at: string
+            Event:
+                created_at: string
+                start_at: string
+                end_at: string
+                id: string
+                cover_url: string
+                name: string
+                description: string
+                description_md: string
+                series_api_id: string | null
+                duration_interval_iso8601: string
+                geo_latitude: string | null
+                geo_longitude: string | null
+                geo_address_json: GeoAddress | null
+                url: string
+                timezone: string
+                event_type: string
+                user_api_id: string
+                visibility: string
+                meeting_url: string | null
+                zoom_meeting_url: string | null
+            GeoAddress:
+                city: string
+                type: string
+                region: string
+                address: string
+                country: string
+                latitude: string
+                place_id: string
+                longitude: string
+                city_state: string
+                description: string
+                full_address: string
     microsoft-teams:
         syncs:
             org-units:
@@ -2570,6 +2981,18 @@ integrations:
                 label: integer
                 cc_email: string
     salesforce:
+        actions:
+            fetch-fields:
+                description: >
+                    Fetch available task fields. If the input is not specified then it
+                    defaults back to "Task"
+
+                    Data Validation: Parses all incoming data with Zod. Does not fail on
+                    parsing error will instead log parse error and return result.
+                scopes: offline_access,api
+                input: SalesforceEntity
+                output: SalesforceFieldSchema
+                endpoint: GET /salesforce/fetch-fields
         syncs:
             accounts:
                 runs: every hour
@@ -2658,6 +3081,97 @@ integrations:
                     created_date: string
                     created_by: string
                 last_modified_date: string
+            SalesforceEntity:
+                name: string
+            SalesforceFieldSchema:
+                fields: Field[]
+                childRelationships: ChildField[]
+            NestedFieldSchema:
+                fields: Field[]
+            Field:
+                name: string
+                label: string
+                type: string
+                referenceTo: string[]
+                relationshipName: string | null
+            ChildField:
+                object: string
+                relationshipName: string | null
+                field: string
+            ActionResponseError:
+                message: string
+                details?: ActionResponseErrorDetails
+            ActionResponseErrorDetails:
+                message: string
+                method: string
+                url: string
+                code: string
+    sharepoint-online:
+        actions:
+            list-sites:
+                description: >
+                    This action will be used to display a list of sites to the end-user,
+                    who will pick the ones he wants to sync.
+                endpoint: GET /sharepoint/list-sites
+                scopes:
+                    - Sites.ReadWrite.All
+                    - offline_access
+                output: SharePointMetadata
+                version: 1.0.0
+            fetch-file:
+                description: >
+                    This action will be used to fetch the latest file download_url which
+                    can be used to download the actual file.
+                endpoint: GET /sharepoint/fetch-file
+                scopes:
+                    - Sites.ReadWrite.All
+                    - offline_access
+                output: FetchFile
+                input: FetchFileInput
+                version: 1.0.0
+        syncs:
+            file-sync:
+                description: >
+                    This sync will be used to sync file metadata from SharePoint site
+                    based on the ones the user has picked.
+                endpoint: GET /sharepoint/file-sync
+                sync_type: incremental
+                runs: every 1 hour
+                scopes:
+                    - Sites.ReadWrite.All
+                    - offline_access
+                input: SharePointMetadata
+                auto_start: false
+                output: FileMetadata
+                version: 1.0.1
+        models:
+            FileMetadata:
+                siteId: string
+                id: string
+                name: string
+                etag: string
+                cTag: string
+                is_folder: boolean
+                mime_type: string | null
+                path: string
+                raw_source: object
+                updated_at: string
+                download_url: string | null
+                created_at: string
+                blob_size: number
+            Site:
+                id: string
+                name: string
+                createdDateTime: string
+                webUrl: string
+            SharePointMetadata:
+                sitesToSync: Site[]
+            FetchFileInput:
+                siteId: string
+                itemId: string
+            FetchFile:
+                id: string
+                download_url: string | null
     slack:
         syncs:
             users:
@@ -2884,17 +3398,30 @@ integrations:
         actions:
             create-lead:
                 endpoint: POST /lead
-                description: Create a lead with information about the opportunity and company
-                input: Lead
+                description: >-
+                    Create a lead with with information about the federal agency, the
+                    name, due date, posted date, solicitation number, naics category or
+                    categories, the city, state, country, and description.
+                input: CreateLead
                 output: Lead
             update-lead:
                 endpoint: PUT /lead
-                description: Update a lead
+                description: >-
+                    Update a lead with any changed information about the federal agency,
+                    the name, due date, posted date, solicitation number, naics category
+                    or categories, the city, state, country, and description.
                 output: Lead
+                input: UpdateLead
+            get-leads:
+                endpoint: GET /leads
+                description: Fetch all leads
+                output: Lead[]
             get-schema:
                 endpoint: GET /schema
                 input: Entity
-                description: Get the schema of any entity
+                description: >-
+                    Get the schema of any entity. Useful to know the properties of any
+                    object that exists in the system.
                 output: Schema[]
             get-company:
                 endpoint: GET /company
@@ -2903,17 +3430,28 @@ integrations:
                 description: Retrieve information about a company
             create-company:
                 endpoint: POST /company
-                input: Entity
+                input: CreateCompany
                 output: Company
                 description: Create a company in the system
             create-opportunity:
                 endpoint: POST /opportunity
                 input: Opportunity
                 output: Opportunity
-                description: Create an opportunity in the system
+                description: >
+                    Create an opportunity in the system. Requires a stage that exists
+
+                    in the system. Use the list-stages action to find the appropriate
+                    stage.
+            create-contact:
+                endpoint: POST /contact
+                input: Contact
+                output: Contact
+                description: Create a contact in the system
             list-stages:
                 endpoint: GET /stages
-                description: List all the stages that exist in the system
+                description: |
+                    List all the stages that exist in the system. Use this action to find
+                    the correct stage to be able to create an opportunity.
                 output: Stage
         models:
             Timestamps:
@@ -2922,40 +3460,116 @@ integrations:
             Entity:
                 name: string
             Location:
-                city: string
-                country: string
+                city?: string
+                state?: string
+                country?: string
+                zip?: string
             Stage:
                 id: number
                 name: string
                 status: string
+            CreateCompany:
+                name: string
+                federalAgency?: FederalAgency
             Company:
                 name: string
                 externalId: string
+                federalAgency?: FederalAgency
                 shortName: string
                 description: string
                 id?: string
             Opportunity:
+                city?: string
+                state?: string
+                country?: string
+                zip?: string
                 name: string
                 description: string
                 id?: string
                 externalId: string
-                companyName: string
+                dueDate: string
+                federalAgency: FederalAgency
                 stage: string
                 active: boolean
             Activity:
                 createdAt: string
                 id: string
                 message: string
+            FederalAgency:
+                city?: string
+                state?: string
+                country?: string
+                zip?: string
+                companyId?: number
+                name: string
+                externalId?: string
+                acronym?: string
+                address1?: string
+                address2?: string
+                address3?: string
+                isHeadquarters?: boolean
+                parentCompanyId?: number
+                parentCompanyName?: string
+                childCount?: number
+                addrLat?: number
+                addrLong?: number
+            Contact:
+                id?: string
+                firstName: string
+                lastName: string
+                federalAgency: FederalAgency
+                position: string
+                emailAddress: string
+                phone: string
+                fax: string
+            BaseLead:
+                federalAgency: FederalAgency
+                name: string
+                dueDate: string
+                postedDate: string
+                solicitationNumber: string
+                naicsCategory: string | string[]
+                city: string
+                state: string
+                country: string
+                description: string
+            CreateLead:
+                federalAgency: FederalAgency
+                name: string
+                dueDate: string
+                postedDate: string
+                solicitationNumber: string
+                naicsCategory: string | string[]
+                city: string
+                state: string
+                country: string
+                description: string
+            UpdateLead:
+                federalAgency: FederalAgency
+                name: string
+                dueDate: string
+                postedDate: string
+                solicitationNumber: string
+                naicsCategory: string | string[]
+                city: string
+                state: string
+                country: string
+                description: string
+                id: string
             Lead:
                 createdAt?: string
                 updatedAt?: string
-                id: string
-                description: string
-                comments?: Comment[]
-                activities?: Activity[]
-                opportunity?: Opportunity
+                federalAgency: FederalAgency
                 name: string
-                stage?: Stage
+                dueDate: string
+                postedDate: string
+                solicitationNumber: string
+                naicsCategory: string | string[]
+                city: string
+                state: string
+                country: string
+                description: string
+                id: string
             Schema:
                 PropertyName: string
                 Group: string | null
@@ -3274,6 +3888,384 @@ integrations:
             Attachment:
                 name: string
                 data: string
+    xero:
+        syncs:
+            contacts:
+                description: |
+                    Fetches all Xero contacts.
+                    Details: incremental sync, detects deletes, metadata is not required.
+                runs: every hour
+                output: Contact
+                sync_type: incremental
+                endpoint: GET /xero/contacts
+            accounts:
+                description: >
+                    Fetches all accounts in Xero (chart of accounts). Incremental sync,
+                    detects deletes, metadata is not required.
+                runs: every hour
+                scopes: accounting.settings
+                output: Account
+                sync_type: incremental
+                endpoint: GET /xero/accounts
+            items:
+                description: >
+                    Fetches all items in Xero. Incremental sync, does not detect deletes,
+                    metadata is not
+
+                    required.
+                runs: every hour
+                scopes: accounting.settings
+                output: Item
+                sync_type: incremental
+                endpoint: GET /xero/items
+            invoices:
+                description: |
+                    Fetches all invoices in Xero. Incremental sync.
+                runs: every hour
+                scopes: accounting.transactions
+                output: Invoice
+                sync_type: incremental
+                endpoint: GET /xero/invoices
+            payments:
+                description: |
+                    Fetches all payments in Xero. Incremental sync.
+                runs: every hour
+                scopes: accounting.transactions
+                output: Payment
+                sync_type: incremental
+                endpoint: GET /xero/payments
+        actions:
+            create-contact:
+                description: |
+                    Creates one or multiple contacts in Xero.
+                    Note: Does NOT check if these contacts already exist.
+                input: CreateContact[]
+                scopes: accounting.contacts
+                output: ContactActionResponse
+                endpoint: POST /xero/contacts
+            update-contact:
+                description: >
+                    Updates one or multiple contacts in Xero. Only fields that are passed
+                    in are modified. If a field should not be changed, omit it in the
+                    input. The id field is mandatory.
+                input: Contact[]
+                scopes: accounting.contacts
+                output: ContactActionResponse
+                endpoint: PUT /xero/contacts
+            create-invoice:
+                description: |
+                    Creates one or more invoices in Xero.
+                    Note: Does NOT check if the invoice already exists.
+                input: CreateInvoice[]
+                scopes: accounting.transactions
+                output: InvoiceActionResponse
+                endpoint: POST /xero/invoices
+                version: 1.0.0
+            update-invoice:
+                description: |
+                    Updates one or more invoices in Xero. To delete an invoice
+                    that is in DRAFT or SUBMITTED set the status to DELETED. If an
+                    invoice has been AUTHORISED it can't be deleted but you can set
+                    the status to VOIDED.
+                input: UpdateInvoice[]
+                scopes: accounting.transactions
+                output: InvoiceActionResponse
+                endpoint: PUT /xero/invoices
+                version: 1.0.0
+            create-credit-note:
+                description: |
+                    Creates one or more credit notes in Xero.
+                    Note: Does NOT check if the credit note already exists.
+                input: CreditNote[]
+                scopes: accounting.transactions
+                output: CreditNoteActionResponse
+                endpoint: POST /xero/creditnotes
+            update-credit-note:
+                description: |
+                    Updates one or more credit notes in Xero.
+                input: CreditNote[]
+                scopes: accounting.transactions
+                output: CreditNoteActionResponse
+                endpoint: PUT /xero/creditnotes
+            create-payment:
+                description: |
+                    Creates one or more payments in Xero.
+                    Note: Does NOT check if the payment already exists.
+                scopes: accounting.transactions
+                input: CreatePayment[]
+                output: PaymentActionResponse
+                endpoint: POST /xero/payments
+            create-item:
+                description: |
+                    Creates one or more items in Xero.
+                    Note: Does NOT check if the item already exists.
+                scopes: accounting.settings
+                input: Item[]
+                output: ItemActionResponse
+                endpoint: POST /xero/items
+            update-item:
+                description: |
+                    Updates one or more items in Xero.
+                scopes: accounting.settings
+                input: Item[]
+                output: ItemActionResponse
+                endpoint: PUT /xero/items
+        models:
+            ActionErrorResponse:
+                message: string
+            BaseContact:
+                name: string
+            CreateContact:
+                name: string
+                external_id?: string
+                email?: string
+                tax_number?: string
+                address_line_1?: string
+                address_line_2?: string
+                city?: string
+                zip?: string
+                country?: string
+                state?: string
+                phone?: string
+            Contact:
+                name: string
+                id: string
+                external_id?: string
+                email: string | null
+                tax_number?: string | null
+                address_line_1?: string | null
+                address_line_2?: string | null
+                city: string | null
+                zip: string | null
+                country: string | null
+                state: string | null
+                phone: string | null
+                subsidiary?: string | null
+            FailedContact:
+                name: string
+                id: string
+                external_id?: string
+                email: string | null
+                tax_number?: string | null
+                address_line_1?: string | null
+                address_line_2?: string | null
+                city: string | null
+                zip: string | null
+                country: string | null
+                state: string | null
+                phone: string | null
+                subsidiary?: string | null
+                validation_errors: any[]
+            ContactActionResponse:
+                succeededContacts: Contact[]
+                failedContacts: FailedContact[]
+            Account:
+                id: string
+                code?: string
+                name: string
+                type: string
+                tax_type: string
+                description: string | null
+                class: string
+                bank_account_type: string
+                reporting_code: string
+                reporting_code_name: string
+            Item:
+                id: string
+                item_code: string | null
+                name: string
+                description: string | null
+                account_code: string | null
+            FailedItem:
+                id: string
+                item_code: string | null
+                name: string
+                description: string | null
+                account_code: string | null
+                validation_errors: any[]
+            ItemActionResponse:
+                succeededItems: Item[]
+                failedItems: FailedItem[]
+            BasePayment:
+                date: string | null
+                amount_cents: number
+                external_contact_id?: string
+                account_code?: string
+                account_id?: string
+            CreatePayment:
+                date: string | null
+                amount_cents: number
+                external_contact_id?: string
+                account_code?: string
+                account_id?: string
+                status?: string
+                invoice_id?: string
+                credit_note_id?: string
+            Payment:
+                date: string | null
+                amount_cents: number
+                external_contact_id?: string
+                account_code?: string
+                account_id?: string
+                id: string
+                status: string
+                invoice_id: string | null
+                credit_note_id: string | null
+            FailedPayment:
+                date: string | null
+                amount_cents: number
+                external_contact_id?: string
+                account_code?: string
+                account_id?: string
+                id: string
+                status: string
+                invoice_id: string | null
+                credit_note_id: string | null
+                validation_errors: any[]
+            IdEntity:
+                id: string
+            StatusOutput:
+                status: string
+            PaymentActionResponse:
+                succeededPayment: Payment[]
+                failedPayments: FailedPayment[]
+            BaseInvoice:
+                type: ACCPAY | ACCREC
+                external_contact_id: string
+                url?: string
+            CreateInvoice:
+                type: ACCPAY | ACCREC
+                external_contact_id: string
+                url?: string
+                fees: CreateInvoiceFee[]
+                issuing_date?: date
+                payment_due_date?: date | null
+                status?: string
+                number?: string
+                currency?: string
+                purchase_order?: string | null
+            BaseInvoiceFee:
+                account_code?: string
+                item_code?: string | null
+                account_external_id?: string | null
+                discount_amount_cents?: number | null
+                discount_rate?: number | null
+            CreateInvoiceFee:
+                account_code?: string
+                item_code?: string | null
+                account_external_id?: string | null
+                discount_amount_cents?: number | null
+                discount_rate?: number | null
+                item_id?: string
+                description: string
+                units?: number
+                precise_unit_amount?: number | null
+                amount_cents?: number | null
+                taxes_amount_cents?: number | null
+            Invoice:
+                type: ACCPAY | ACCREC
+                external_contact_id: string
+                url?: string
+                id: string
+                issuing_date: string | null
+                payment_due_date: string | null
+                status: string
+                number?: string
+                currency: string
+                purchase_order: string | null
+                fees: InvoiceFee[]
+            UpdateInvoice:
+                type?: ACCPAY | ACCREC
+                external_contact_id?: string
+                url?: string
+                id: string
+                issuing_date?: string | null
+                payment_due_date?: string | null
+                status?: string
+                number?: string
+                currency?: string
+                purchase_order?: string | null
+                fees?: UpdateInvoiceFee[]
+            InvoiceFee:
+                account_code?: string
+                item_code?: string | null
+                account_external_id?: string | null
+                discount_amount_cents?: number | null
+                discount_rate?: number | null
+                item_id: string
+                description: string | null
+                units: number | null
+                precise_unit_amount: number | null
+                amount_cents: number | null
+                taxes_amount_cents: number | null
+            UpdateInvoiceFee:
+                account_code?: string
+                item_code?: string | null
+                account_external_id?: string | null
+                discount_amount_cents?: number | null
+                discount_rate?: number | null
+                item_id?: string
+                description?: string | null
+                units?: number | null
+                precise_unit_amount?: number | null
+                amount_cents?: number | null
+                taxes_amount_cents?: number | null
+            FailedInvoice:
+                type: ACCPAY | ACCREC
+                external_contact_id: string
+                url?: string
+                id: string
+                issuing_date: string | null
+                payment_due_date: string | null
+                status: string
+                number?: string
+                currency: string
+                purchase_order: string | null
+                fees: InvoiceFee[]
+                validation_errors: any[]
+            InvoiceActionResponse:
+                succeededInvoices: Invoice[]
+                failedInvoices: FailedInvoice[]
+            CreditNote:
+                id: string
+                type: string
+                external_contact_id: string
+                status: string
+                number: string
+                is_taxable: boolean
+                tax_rate_id: string
+                tax_rate: number
+                currency: string
+                reference: string
+                issuing_date: date
+                fees: CreditNoteFee[]
+            CreditNoteFee:
+                item_id: string
+                item_code: string
+                description: string
+                units: number
+                precise_unit_amount: number
+                account_code: string
+                account_external_id: string
+                amount_cents: number
+                taxes_amount_cents: number
+            FailedCreditNote:
+                id: string
+                type: string
+                external_contact_id: string
+                status: string
+                number: string
+                is_taxable: boolean
+                tax_rate_id: string
+                tax_rate: number
+                currency: string
+                reference: string
+                issuing_date: date
+                fees: CreditNoteFee[]
+                validation_errors: any[]
+            CreditNoteActionResponse:
+                succeededCreditNotes: CreditNote[]
+                failedCreditNotes: FailedCreditNote[]
     zendesk:
         syncs:
             tickets:

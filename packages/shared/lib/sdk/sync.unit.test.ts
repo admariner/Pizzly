@@ -2,25 +2,39 @@
 import { Nango } from '@nangohq/node';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mockErrorManagerReport } from '../utils/error.manager.mocks.js';
-import type { Config } from '../models/index.js';
+import type { Config, SyncConfig } from '../models/index.js';
 import type { Template } from '@nangohq/types';
 import configService from '../services/config.service.js';
 import type { CursorPagination, LinkPagination, OffsetPagination } from '../models/Proxy.js';
 import type { NangoProps } from './sync.js';
-import { NangoAction } from './sync.js';
+import { NangoAction, NangoSync } from './sync.js';
 import { isValidHttpUrl } from '../utils/utils.js';
 import proxyService from '../services/proxy.service.js';
 import type { AxiosResponse } from 'axios';
+import { NangoError } from '../utils/error.js';
 
 const nangoProps: NangoProps = {
+    scriptType: 'sync',
     secretKey: '***',
     providerConfigKey: 'github',
+    provider: 'github',
     connectionId: 'connection-1',
     dryRun: false,
     activityLogId: '1',
-    accountId: 1,
+    team: {
+        id: 1,
+        name: 'team'
+    },
     environmentId: 1,
-    lastSyncDate: new Date()
+    environmentName: 'test-env',
+    lastSyncDate: new Date(),
+    syncConfig: {} as SyncConfig,
+    syncId: '1',
+    syncJobId: 1,
+    nangoConnectionId: 1,
+    debug: false,
+    runnerFlags: {} as any,
+    startedAt: new Date()
 };
 
 describe('cache', () => {
@@ -405,6 +419,23 @@ describe('Pagination', () => {
             token_url: ''
         };
     };
+});
+
+describe('batchSave', () => {
+    it('should validate records with json schema', async () => {
+        const nango = new NangoSync({
+            ...nangoProps,
+            dryRun: true,
+            runnerFlags: { validateSyncRecords: true } as any,
+            syncConfig: {
+                models_json_schema: {
+                    definitions: { Test: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'], additionalProperties: false } }
+                }
+            } as any
+        });
+
+        await expect(async () => await nango.batchSave([{ foo: 'bar' }], 'Test')).rejects.toThrow(new NangoError(`invalid_sync_record`));
+    });
 });
 
 describe('Log', () => {

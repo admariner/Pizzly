@@ -9,16 +9,11 @@ export const stagingUrl: string = 'https://api-staging.nango.dev';
 export const prodUrl: string = 'https://api.nango.dev';
 
 export const syncDocs = 'https://docs.nango.dev/integrate/guides/sync-data-from-an-api';
-
-export const AUTH_ENABLED = isCloud() || isEnterprise() || isLocal();
-export const MANAGED_AUTH_ENABLED = isCloud() || isLocal();
+export const githubRepo = 'https://github.com/NangoHQ/nango';
+export const githubIntegrationTemplates = `${githubRepo}/tree/master/integration-templates`;
 
 export function isHosted() {
     return process.env.REACT_APP_ENV === 'hosted';
-}
-
-export function isEnterprise() {
-    return process.env.REACT_APP_ENV === 'enterprise';
 }
 
 export function isStaging() {
@@ -27,14 +22,6 @@ export function isStaging() {
 
 export function isProd() {
     return process.env.REACT_APP_ENV === 'production';
-}
-
-export function isCloud() {
-    return isProd() || isStaging();
-}
-
-export function isLocal() {
-    return window.location.href.includes('localhost');
 }
 
 export function baseUrl() {
@@ -218,10 +205,20 @@ export function formatFrequency(frequency: string): string {
         hours: 'h',
         hour: 'h',
         days: 'd',
-        day: 'd'
+        day: 'd',
+        months: 'mos',
+        month: 'mo',
+        years: 'y',
+        year: 'y'
     };
 
-    frequency = frequency.replace('every', '');
+    // 1. replace every: every 5 minutes -> 5 minutes
+    frequency = frequency.replace('every', '').trim();
+    // 2. prefix with `1` if no quantity. Ex: every day -> day -> 1day
+    if (!/^\d/.test(frequency)) {
+        frequency = '1' + frequency;
+    }
+    // 3. replace unit by shortname if possible: Ex: 5 minutes -> 5m
     for (const [unit, abbreviation] of Object.entries(unitMap)) {
         if (frequency.includes(unit)) {
             return frequency.replace(unit, abbreviation).replace(/\s/g, '');

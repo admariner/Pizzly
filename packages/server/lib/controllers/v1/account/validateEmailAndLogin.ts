@@ -2,7 +2,8 @@ import { z } from 'zod';
 import { asyncWrapper } from '../../../utils/asyncWrapper.js';
 import { getLogger, requireEmptyQuery, zodErrorToHTTP } from '@nangohq/utils';
 import { analytics, userService, AnalyticsTypes, environmentService, createOnboardingProvider } from '@nangohq/shared';
-import type { WebUser, ValidateEmailAndLogin } from '@nangohq/types';
+import type { ValidateEmailAndLogin } from '@nangohq/types';
+import { userToAPI } from '../../../formatters/user.js';
 
 const logger = getLogger('Server.ValidateEmailAndLogin');
 
@@ -14,7 +15,6 @@ const validation = z
 
 export const validateEmailAndLogin = asyncWrapper<ValidateEmailAndLogin>(async (req, res) => {
     const emptyQuery = requireEmptyQuery(req);
-
     if (emptyQuery) {
         res.status(400).send({ error: { code: 'invalid_query_params', errors: zodErrorToHTTP(emptyQuery.error) } });
         return;
@@ -31,7 +31,7 @@ export const validateEmailAndLogin = asyncWrapper<ValidateEmailAndLogin>(async (
 
     const { token } = val.data;
 
-    const tokenResponse = await userService.getUserAndAccountByToken(token);
+    const tokenResponse = await userService.getUserByToken(token);
 
     if (tokenResponse.isErr()) {
         const error = tokenResponse.error;
@@ -53,11 +53,11 @@ export const validateEmailAndLogin = asyncWrapper<ValidateEmailAndLogin>(async (
         return;
     }
 
-    const userAndAccount = tokenResponse.value;
+    const user = tokenResponse.value;
 
-    await userService.verifyUserEmail(userAndAccount.user_id);
+    await userService.verifyUserEmail(user.id);
 
-    const { user_id, account_id, email } = userAndAccount;
+    const { account_id, email } = user;
 
     void analytics.track(AnalyticsTypes.ACCOUNT_CREATED, account_id, {}, { email });
 
@@ -71,13 +71,6 @@ export const validateEmailAndLogin = asyncWrapper<ValidateEmailAndLogin>(async (
         }
     }
 
-    const user: WebUser = {
-        id: user_id,
-        accountId: account_id,
-        email,
-        name: userAndAccount.name
-    };
-
     req.login(user, function (err) {
         if (err) {
             logger.error('Error logging in user');
@@ -85,6 +78,6 @@ export const validateEmailAndLogin = asyncWrapper<ValidateEmailAndLogin>(async (
             return;
         }
 
-        res.status(200).send({ user });
+        res.status(200).send({ user: userToAPI(user) });
     });
 });

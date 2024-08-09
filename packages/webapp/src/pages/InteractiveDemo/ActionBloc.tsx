@@ -4,7 +4,7 @@ import { Language, Steps, actionName, endpointAction } from './utils';
 import Button from '../../components/ui/button/Button';
 import { Bloc, Tab } from './Bloc';
 import { cn } from '../../utils/utils';
-import CopyButton from '../../components/ui/button/CopyButton';
+import { CopyButton } from '../../components/ui/button/CopyButton';
 import { useAnalyticsTrack } from '../../utils/analytics';
 import { CheckCircledIcon, ExternalLinkIcon } from '@radix-ui/react-icons';
 import { curlSnippet, nodeActionSnippet } from '../../utils/language-snippets';
@@ -12,6 +12,7 @@ import { useStore } from '../../store';
 import { useMeta } from '../../hooks/useMeta';
 import { apiFetch } from '../../utils/api';
 import type { NangoModel } from '@nangohq/types';
+import { useUser } from '../../hooks/useUser';
 
 export const ActionBloc: React.FC<{ step: Steps; providerConfigKey: string; connectionId: string; secretKey: string; onProgress: () => void }> = ({
     step,
@@ -22,6 +23,7 @@ export const ActionBloc: React.FC<{ step: Steps; providerConfigKey: string; conn
 }) => {
     const analyticsTrack = useAnalyticsTrack();
     const { meta } = useMeta();
+    const { user: me } = useUser();
 
     const [language, setLanguage] = useState<Language>(Language.Node);
     const [title, setTitle] = useState('');
@@ -48,7 +50,7 @@ export const ActionBloc: React.FC<{ step: Steps; providerConfigKey: string; conn
 
     useEffect(() => {
         if (meta && title === '') {
-            setTitle(`${meta.email.split('@')[0]}'s example issue`);
+            setTitle(`${me!.email.split('@')[0]}'s example issue`);
         }
     }, [meta, title]);
 
@@ -128,7 +130,7 @@ export const ActionBloc: React.FC<{ step: Steps; providerConfigKey: string; conn
                             cURL
                         </Tab>
                     </div>
-                    <CopyButton dark text={snippet} />
+                    <CopyButton text={snippet} />
                 </div>
                 <Prism noCopy language="typescript" className="p-3 transparent-code bg-black" colorScheme="dark">
                     {snippet}

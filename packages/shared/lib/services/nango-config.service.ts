@@ -1,4 +1,3 @@
-import chalk from 'chalk';
 import type {
     NangoConfig,
     NangoConfigV1,
@@ -124,7 +123,8 @@ export function convertConfigObject(config: NangoConfigV1): ServiceResponse<Stan
                 scopes: Array.isArray(scopes) ? scopes : String(scopes)?.split(','),
                 endpoints: sync?.endpoints || [],
                 nango_yaml_version: 'v1',
-                layout_mode
+                layout_mode,
+                json_schema: null
             };
 
             if (sync.type === 'action') {
@@ -157,7 +157,7 @@ const assignEndpoints = (rawEndpoint: string, defaultMethod: HTTP_VERB, singleAl
         const method = singleAllowedMethod ? defaultMethod : (endpoint[0]?.toUpperCase() as HTTP_VERB);
 
         if (singleAllowedMethod && showMessages && endpoint[0]?.toUpperCase() !== defaultMethod) {
-            console.log(chalk.yellow(`A sync only allows for a ${defaultMethod} method. The provided ${endpoint[0]?.toUpperCase()} method will be ignored.`));
+            console.log(`A sync only allows for a ${defaultMethod} method. The provided ${endpoint[0]?.toUpperCase()} method will be ignored.`);
         }
 
         endpoints = [
@@ -167,7 +167,7 @@ const assignEndpoints = (rawEndpoint: string, defaultMethod: HTTP_VERB, singleAl
         ];
     } else {
         if (showMessages && !singleAllowedMethod) {
-            console.log(chalk.yellow(`No HTTP method provided for endpoint ${endpoint[0]}. Defaulting to ${defaultMethod}.`));
+            console.log(`No HTTP method provided for endpoint ${endpoint[0]}. Defaulting to ${defaultMethod}.`);
         }
         endpoints = [
             {
@@ -213,16 +213,12 @@ const parseModelInEndpoint = (endpoint: string, allModelNames: string[], inputMo
     return { success: true, error: null, response: inputModel };
 };
 
-const isEnabled = (script: NangoIntegrationDataV2, isPublic: boolean | null, preBuilt: boolean | null): boolean => {
+const isEnabled = (script: NangoIntegrationDataV2): boolean => {
     if (script.enabled !== undefined) {
         return script.enabled;
     }
 
-    if ((isPublic || preBuilt) && !script.version) {
-        return false;
-    }
-
-    return true;
+    return false;
 };
 
 export function convertV2ConfigObject(config: NangoConfigV2, showMessages = false, isPublic?: boolean | null): ServiceResponse<StandardNangoConfig[]> {
@@ -371,13 +367,15 @@ function buildSyncs({
             return { success: false, error: modelError, response: null };
         }
 
-        const inputModel: NangoSyncModel = {} as NangoSyncModel;
+        let inputModel: NangoSyncModel | undefined = undefined;
 
         if (sync.input) {
             const modelFields = getFieldsForModel(sync.input, config) as { name: string; type: string }[];
             if (modelFields) {
-                inputModel.name = sync.input;
-                inputModel.fields = modelFields;
+                inputModel = {
+                    name: sync.input,
+                    fields: modelFields
+                };
             }
         }
 
@@ -418,7 +416,7 @@ function buildSyncs({
         const scopes = sync?.scopes || sync?.metadata?.scopes || [];
 
         if (!sync?.runs && showMessages) {
-            console.log(chalk.yellow(`No runs property found for sync "${syncName}". Defaulting to every day.`));
+            console.log(`No runs property found for sync "${syncName}". Defaulting to every day.`);
         }
 
         const runs = sync?.runs || 'every day';
@@ -440,12 +438,12 @@ function buildSyncs({
         const is_public = isPublic !== undefined ? isPublic : sync.is_public === true;
         const pre_built = isPublic !== undefined ? isPublic : sync.pre_built === true;
 
-        const enabled = isEnabled(sync, is_public, pre_built);
+        const enabled = isEnabled(sync);
         const syncObject: NangoSyncConfig = {
             name: syncName,
             type: 'sync',
             models: models || [],
-            sync_type: sync.sync_type?.toUpperCase() === SyncType.INCREMENTAL ? SyncType.INCREMENTAL : SyncType.FULL,
+            sync_type: sync.sync_type?.toUpperCase() === SyncType.FULL ? SyncType.FULL : SyncType.INCREMENTAL,
             runs,
             track_deletes: sync.track_deletes || false,
             auto_start: sync.auto_start === false ? false : true,
@@ -463,7 +461,8 @@ function buildSyncs({
             nango_yaml_version: sync.nango_yaml_version || 'v2',
             webhookSubscriptions,
             enabled,
-            layout_mode: localFileService.getLayoutMode(syncName, providerConfigKey, 'sync')
+            layout_mode: localFileService.getLayoutMode(syncName, providerConfigKey, 'sync'),
+            json_schema: null
         };
 
         if (sync.id) {
@@ -509,7 +508,7 @@ function buildActions({
             return { success: false, error: modelError, response: null };
         }
 
-        let inputModel: NangoSyncModel = {} as NangoSyncModel;
+        let inputModel: NangoSyncModel | undefined = undefined;
 
         if (action.input) {
             if (action.input.includes('{') && action.input.includes('}')) {
@@ -522,8 +521,10 @@ function buildActions({
             }
             const modelFields = getFieldsForModel(action.input, config) as { name: string; type: string }[];
             if (modelFields) {
-                inputModel.name = action.input;
-                inputModel.fields = modelFields;
+                inputModel = {
+                    name: action.input,
+                    fields: modelFields
+                };
             }
         }
 
@@ -544,7 +545,7 @@ function buildActions({
 
             endpoints = assignEndpoints(actionEndpoint, 'POST', false, showMessages);
             if (actionEndpoint?.includes('{') && actionEndpoint.includes('}')) {
-                const { success, error, response } = parseModelInEndpoint(actionEndpoint, allModelNames, inputModel, config);
+                const { success, error, response } = parseModelInEndpoint(actionEndpoint, allModelNames, inputModel!, config);
                 if (!success || !response) {
                     return { success, error, response: null };
                 }
@@ -563,7 +564,7 @@ function buildActions({
         const is_public = isPublic !== undefined ? isPublic : action.is_public === true;
         const pre_built = isPublic !== undefined ? isPublic : action.pre_built === true;
 
-        const enabled = isEnabled(action, is_public, pre_built);
+        const enabled = isEnabled(action);
 
         const actionObject: NangoSyncConfig = {
             name: actionName,
@@ -582,7 +583,8 @@ function buildActions({
             endpoints,
             nango_yaml_version: action.nango_yaml_version || 'v2',
             enabled,
-            layout_mode: localFileService.getLayoutMode(actionName, providerConfigKey, 'action')
+            layout_mode: localFileService.getLayoutMode(actionName, providerConfigKey, 'action'),
+            json_schema: null
         };
 
         if (action.id) {

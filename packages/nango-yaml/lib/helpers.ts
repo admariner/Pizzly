@@ -139,7 +139,7 @@ export const typesAliases: Record<string, string> = {
     boolean: 'boolean',
     bigint: 'bigint',
     date: 'Date',
-    object: 'object',
+    object: 'Record<string, any>',
     any: 'any',
     array: 'any[]',
     undefined: 'undefined'
@@ -179,7 +179,7 @@ export function shouldQuote(name: string) {
 }
 
 export function getProviderConfigurationFromPath({ filePath, parsed }: { filePath: string; parsed: NangoYamlParsed }): NangoYamlParsedIntegration | null {
-    const pathSegments = filePath.split('/');
+    const pathSegments = filePath.split(path.sep);
     const scriptType = pathSegments.length > 1 ? pathSegments[pathSegments.length - 2] : null;
     const isNested = scriptType === 'syncs' || scriptType === 'actions' || scriptType === 'post-connection-scripts';
 
