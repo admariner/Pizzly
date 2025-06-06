@@ -2,6 +2,145 @@
 
 All notable changes to this project will be documented in this file.
 
+## [v0.60.3] - 2025-06-06
+
+### Added
+
+- *(integrations)* Add Jobvite integration documentation and configuration (#4169) by @viictoo
+- *(webapp)* Add snapshot tests to snippets (#4162) by @kaposke
+- Database changes for webhook forwarding enabled (#4171) by @rossmcewan
+- Option to deactivate forwarding webhooks by integration (#4161) by @rossmcewan
+
+### Fixed
+
+- *(deploy)* Refactor template deploy (#4159) by @bodinsamuel
+
+## [v0.60.2] - 2025-06-05
+
+### Added
+
+- *(cli)* ZeroYaml generate:docs  (#4152) by @bodinsamuel
+
+### Changed
+
+- *(deps)* Bump multer from 2.0.0 to 2.0.1 in /packages/server (#4166) by @dependabot[bot]
+
+### Fixed
+
+- *(webhook)* Decode private key before hashing in validation (#4151) by @priyesh2609
+- *(cli)* Use old syntax for dirname (#4168) by @bodinsamuel
+
+## [v0.60.1] - 2025-06-04
+
+### Added
+
+- Add section about handling invalid connections (#4132) by @TBonnin
+- *(webapp)* Add duration to logs and sub-logs (#4155) by @rossmcewan
+- *(providers)* Localize oracle-hcm (#4158) by @kaposke
+- *(webapp)* Add second-level precision to period log search (#4154) by @rossmcewan
+
+### Fixed
+
+- *(server)* Mistake on getting json_schema models (#4157) by @kaposke
+- *(zeroyaml)* Various bug fixes (#4156) by @bodinsamuel
+- *(cli)* Dryrun with --integration-id flag has incorrect check (#4164) by @kaposke
+
+## [v0.60.0] - 2025-06-04
+
+### Added
+
+- *(integrations)* Add support for PreciseFP (#3975) by @h55nick
+- *(cli)* Zero deploy (#4129) by @bodinsamuel
+- *(exec)* Support zero yaml script in runner and dryrun (#4115) by @bodinsamuel
+- *(cli)* Zeroyaml nango dev (#4148) by @bodinsamuel
+- *(cli)* Migrate to zero (#4138) by @bodinsamuel
+- *(integrations)* Add support for ukg pro and ukg ready (#4143) by @ChoqueCastroLD
+
+### Changed
+
+- *(deps)* Bump tar-fs (#4145) by @dependabot[bot]
+- Improved pg pooler docs and fixed formatting of env variables (#4139) by @paradoxloop
+
+### Fixed
+
+- *(webapp)* Show logs from connection page (#4140) by @kaposke
+- Failed starting supervisor error when remote runner (#4141) by @TBonnin
+- *(deploy)* Use same logic for models_json_schema in custom and prebuilt (#4142) by @kaposke
+- *(deps)* Upgrade soap, tsup (#4149) by @bodinsamuel
+- *(deps)* Upgrade tooling (#4150) by @bodinsamuel
+- More descriptive errors for disabled sync configs (#4146) by @rossmcewan
+- Adjustable log payload height (#4147) by @rossmcewan
+- *(frontend-sdk)* Fix two-step credentials types (#4153) by @hassan254-prog
+
+## [v0.59.13] - 2025-05-30
+
+### Added
+
+- *(canva)* Add support for Canva API via OAuth (#4114) by @lordsarcastic
+- *(integrations)* Add support for JobAdder (#4120) by @lordsarcastic
+- *(integrations)* Add support for paychex (#4126) by @hassan254-prog
+- Download scripts from UI (#4113) by @kaposke
+- *(cli)* Add init --zero  (#4112) by @bodinsamuel
+- *(authorization)* Skip undefined/empty query parameter (#4124) by @hassan254-prog
+- *(cli)* Zero yaml compile (#4116) by @bodinsamuel
+- *(integrations)* Add support for Recruit CRM (#4131) by @lordsarcastic
+- Add missing index for sync endpoint table (#4135) by @TBonnin
+- *(terraform)* Ext-713 Add Terraform configuration and documentation (#4117) by @ChoqueCastroLD
+- *(integerations)* Add support for confluence data center (#4136) by @hassan254-prog
+- *(integrations)* Add support for Dropbox sign (#4019) by @lordsarcastic
+
+### Changed
+
+- *(integration-templates)* Automated commit updating flows.yaml based on changes in https://github.com/NangoHQ/integration-templates/commit/2a2f80670459722b3b5ac3f1396a665c4a145818 by Victor Lang'at. Commit message: feat(workday): Update employee syncs to support incremental updates (#340) by @github-actions[bot]
+
+### Fixed
+
+- *(deps)* Upgrade cookie-parser (#4130) by @bodinsamuel
+- *(slack)* Ts is not always present (#4128) by @bodinsamuel
+- GET /connection/id consistent response when invalid credentials (#4122) by @TBonnin
+- Sync status shouldn't return finishedAt when RUNNING (#4133) by @TBonnin
+
+## [v0.59.12] - 2025-05-28
+
+### Fixed
+
+- *(cli)* Detect nango folder correctly (#4125) by @bodinsamuel
+
+## [v0.59.11] - 2025-05-27
+
+### Added
+
+- Add lang param to connect-ui docs (#4121) by @kaposke
+
+### Changed
+
+- Release script to use short live github token by @TBonnin
+
+### Fixed
+
+- *(cli)* Send sdkVersion (#4111) by @bodinsamuel
+
+## [v0.59.8] - 2025-05-27
+
+### Added
+
+- Add comprehensive Microsoft OAuth setup guide (#3706) by @devin-ai-integration[bot]
+- *(syncConfig)* Store sdk version along syncConfigs, onevents (#4106) by @bodinsamuel
+- *(connect-ui)* Spanish and german translations (#4109) by @kaposke
+- Localize providers.yaml for connect-ui (#4105) by @kaposke
+- Add async tag to trigger action span (#4119) by @TBonnin
+- New scripts types, expose in cli  (#4108) by @bodinsamuel
+
+### Changed
+
+- *(integration-templates)* Automated commit updating flows.yaml based on changes in https://github.com/NangoHQ/integration-templates/commit/2b7780e2e3e58e807a204d643632d2066b46ba82 by Khaliq. Commit message: feat(google-calendar-events): Update google calendar events sync (#339) by @github-actions[bot]
+- *(docs)* Improve microsoft client credential and business central documentation pages (#4110) by @hassan254-prog
+
+### Fixed
+
+- *(docs)* More specific docs on 1password SCIM Bridge (#4107) by @khaliqgant
+- *(cli)* Prepare zero yaml  (#4118) by @bodinsamuel
+
 ## [v0.59.7] - 2025-05-23
 
 ### Added
@@ -3976,6 +4115,14 @@ All notable changes to this project will be documented in this file.
 - Update Zendesk Chat configuration file (#161) by @Frenchcooc
 - APIs using client_credentials as grant type (#165) by @Frenchcooc
 
+[v0.60.3]: https://github.com/NangoHQ/nango/compare/v0.60.2..v0.60.3
+[v0.60.2]: https://github.com/NangoHQ/nango/compare/v0.60.1..v0.60.2
+[v0.60.1]: https://github.com/NangoHQ/nango/compare/v0.60.0..v0.60.1
+[v0.60.0]: https://github.com/NangoHQ/nango/compare/v0.59.13..v0.60.0
+[v0.59.13]: https://github.com/NangoHQ/nango/compare/v0.59.12..v0.59.13
+[v0.59.12]: https://github.com/NangoHQ/nango/compare/v0.59.11..v0.59.12
+[v0.59.11]: https://github.com/NangoHQ/nango/compare/v0.59.8..v0.59.11
+[v0.59.8]: https://github.com/NangoHQ/nango/compare/v0.59.7..v0.59.8
 [v0.59.7]: https://github.com/NangoHQ/nango/compare/v0.59.3..v0.59.7
 [v0.59.3]: https://github.com/NangoHQ/nango/compare/v0.59.1..v0.59.3
 [v0.59.1]: https://github.com/NangoHQ/nango/compare/v0.59.0..v0.59.1
