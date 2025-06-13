@@ -11,6 +11,7 @@ import { enrichHeaders, http, isCI, parseSecretKey, printDebug } from '../utils.
 import { parse } from './config.service.js';
 import { loadSchemaJson } from './model.service.js';
 import { cloudHost, localhostUrl } from '../constants.js';
+import { NANGO_VERSION } from '../version.js';
 
 import type { DeployOptions, InternalDeployOptions } from '../types.js';
 import type {
@@ -28,75 +29,6 @@ import type { AxiosResponse } from 'axios';
 import type { JSONSchema7 } from 'json-schema';
 
 class DeployService {
-    public async admin({ fullPath, environmentName, debug = false }: { fullPath: string; environmentName: string; debug?: boolean }): Promise<void> {
-        await verificationService.necessaryFilesExist({ fullPath, autoConfirm: false });
-
-        await parseSecretKey(environmentName, debug);
-
-        if (!process.env['NANGO_HOSTPORT']) {
-            switch (environmentName) {
-                case 'local':
-                    process.env['NANGO_HOSTPORT'] = localhostUrl;
-                    break;
-                default:
-                    process.env['NANGO_HOSTPORT'] = cloudHost;
-                    break;
-            }
-        }
-
-        if (debug) {
-            printDebug(`NANGO_HOSTPORT is set to ${process.env['NANGO_HOSTPORT']}.`);
-            printDebug(`Environment is set to ${environmentName}`);
-        }
-
-        const { success } = await compileAllFiles({ fullPath, debug });
-
-        if (!success) {
-            console.log(chalk.red('Compilation was not fully successful. Please make sure all files compile before deploying'));
-            process.exit(1);
-        }
-
-        const parsing = parse(fullPath, debug);
-        if (parsing.isErr()) {
-            console.log(chalk.red(parsing.error.message));
-            return;
-        }
-
-        const parser = parsing.value;
-        const flowData = this.package({ parsed: parser.parsed!, fullPath, debug });
-
-        if (!flowData) {
-            return;
-        }
-
-        const targetAccountUUID = await promptly.prompt('Input the account uuid to deploy to: ');
-
-        if (!targetAccountUUID) {
-            console.log(chalk.red('Account uuid is required. Exiting'));
-            return;
-        }
-
-        const url = process.env['NANGO_HOSTPORT'] + `/admin/flow/deploy/pre-built`;
-
-        try {
-            await http
-                .post(
-                    url,
-                    { targetAccountUUID, targetEnvironment: environmentName, parsed: flowData, nangoYamlBody: parser.yaml },
-                    { headers: enrichHeaders() }
-                )
-                .then(() => {
-                    console.log(chalk.green(`Successfully deployed the syncs/actions to the users account.`));
-                })
-                .catch((err: unknown) => {
-                    const errorMessage = JSON.stringify(err instanceof AxiosError ? err.response?.data : err, null, 2);
-                    console.log(chalk.red(`Error deploying the syncs/actions with the following error: ${errorMessage}`));
-                    process.exit(1);
-                });
-        } catch (err) {
-            console.error(err);
-        }
-    }
     public async prep({ fullPath, options, environment, debug = false }: { fullPath: string; options: DeployOptions; environment: string; debug?: boolean }) {
         const { env, version, sync: optionalSyncName, action: optionalActionName, integration: integrationId, autoConfirm, allowDestructive } = options;
 
@@ -232,13 +164,15 @@ class DeployService {
 
         const nangoYamlBody = parser.yaml;
 
+        const sdkVersion = `${NANGO_VERSION}-yaml`;
         const url = process.env['NANGO_HOSTPORT'] + `/sync/deploy`;
         const bodyDeploy: PostDeploy['Body'] = {
             ...postData,
             reconcile: true,
             debug,
             nangoYamlBody,
-            singleDeployMode
+            singleDeployMode,
+            sdkVersion
         };
 
         const shouldConfirm = process.env['NANGO_DEPLOY_AUTO_CONFIRM'] !== 'true' && !autoConfirm;
@@ -249,7 +183,8 @@ class DeployService {
                 ...postData,
                 reconcile: false,
                 debug,
-                singleDeployMode
+                singleDeployMode,
+                sdkVersion
             };
             const response = await http.post(confirmationUrl, bodyConfirmation, { headers: enrichHeaders() });
 

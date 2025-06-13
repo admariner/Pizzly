@@ -700,6 +700,22 @@ paths:
                                 properties:
                                     message:
                                         type: string
+                '424':
+                    description: Connection refresh exhausted
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    error:
+                                        type: object
+                                        properties:
+                                            code:
+                                                type: string
+                                                description: The error code
+                                            message:
+                                                type: string
+                                                description: A human-readable error message
                 '404':
                     description: Unknown Connection
                     content:
@@ -2498,6 +2514,8 @@ components:
                 webhook_user_defined_secret:
                     type: boolean
                 post_connection_script:
+                    type: string
+                pre_connection_deletion_script:
                     type: string
                 categories:
                     items:

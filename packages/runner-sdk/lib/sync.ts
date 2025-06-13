@@ -2,11 +2,17 @@ import { NangoActionBase } from './action.js';
 import { validateData } from './dataValidation.js';
 
 import type { ValidateDataError } from './dataValidation.js';
+import type { RawModel, ZodMetadata, ZodModel } from './types.js';
 import type { MaybePromise, NangoProps } from '@nangohq/types';
+import type { z } from 'zod';
 
 export const BASE_VARIANT = 'base';
 
-export abstract class NangoSyncBase extends NangoActionBase {
+export abstract class NangoSyncBase<
+    TModels extends Record<string, ZodModel> = never,
+    TMetadata extends ZodMetadata = never,
+    TModelName extends keyof TModels = keyof TModels
+> extends NangoActionBase<TMetadata> {
     public variant = BASE_VARIANT;
 
     lastSyncDate?: Date;
@@ -38,19 +44,28 @@ export abstract class NangoSyncBase extends NangoActionBase {
     /**
      * @deprecated please use batchSave
      */
-    public async batchSend<T extends object>(results: T[], model: string): Promise<boolean | null> {
+    public async batchSend<TModel extends RawModel = z.infer<TModels[TModelName]>>(results: TModel[], model: TModelName): Promise<boolean | null> {
         return this.batchSave(results, model);
     }
 
-    public abstract batchSave<T extends object>(results: T[], model: string): MaybePromise<boolean>;
+    public abstract batchSave<TModel extends RawModel = z.infer<TModels[TModelName]>>(results: TModel[], model: TModelName): MaybePromise<boolean>;
 
-    public abstract batchDelete<T extends object>(results: T[], model: string): MaybePromise<boolean>;
+    public abstract batchDelete<TModel extends RawModel = z.infer<TModels[TModelName]>>(
+        results: (Pick<TModel, 'id'> & Partial<TModel>)[],
+        model: TModelName
+    ): MaybePromise<boolean>;
 
-    public abstract batchUpdate<T extends object>(results: T[], model: string): MaybePromise<boolean>;
+    public abstract batchUpdate<TModel extends RawModel = z.infer<TModels[TModelName]>>(
+        results: (Pick<TModel, 'id'> & Partial<TModel>)[],
+        model: TModelName
+    ): MaybePromise<boolean>;
 
-    public abstract getRecordsByIds<K = string | number, T = any>(ids: K[], model: string): MaybePromise<Map<K, T>>;
+    public abstract getRecordsByIds<TKey = string | number, TModel extends RawModel = z.infer<TModels[TModelName]>>(
+        ids: TKey[],
+        model: TModelName
+    ): MaybePromise<Map<TKey, TModel>>;
 
-    public abstract setMergingStrategy(merging: { strategy: 'ignore_if_modified_after' | 'override' }, model: string): Promise<void>;
+    public abstract setMergingStrategy(merging: { strategy: 'ignore_if_modified_after' | 'override' }, model: TModelName): Promise<void>;
 
     protected validateRecords(model: string, records: unknown[]): { data: any; validation: ValidateDataError[] }[] {
         // Validate records

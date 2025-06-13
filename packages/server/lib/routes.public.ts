@@ -32,7 +32,6 @@ import { postPublicMetadata } from './controllers/connection/connectionId/metada
 import { getPublicConnections } from './controllers/connection/getConnections.js';
 import connectionController from './controllers/connection.controller.js';
 import environmentController from './controllers/environment.controller.js';
-import flowController from './controllers/flow.controller.js';
 import { getPublicListIntegrations } from './controllers/integrations/getListIntegrations.js';
 import { postPublicIntegration } from './controllers/integrations/postIntegration.js';
 import { deletePublicIntegration } from './controllers/integrations/uniqueKey/deleteIntegration.js';
@@ -55,6 +54,7 @@ import { postPublicTrigger } from './controllers/sync/postTrigger.js';
 import { putSyncConnectionFrequency } from './controllers/sync/putSyncConnectionFrequency.js';
 import syncController from './controllers/sync.controller.js';
 import { postWebhook } from './controllers/webhook/environmentUuid/postWebhook.js';
+import { acceptLanguageMiddleware } from './middleware/accept-language.middleware.js';
 import authMiddleware from './middleware/access.middleware.js';
 import { cliMaxVersion, cliMinVersion } from './middleware/cliVersionCheck.js';
 import { jsonContentTypeMiddleware } from './middleware/json.middleware.js';
@@ -68,11 +68,6 @@ const apiAuth: RequestHandler[] = [authMiddleware.secretKeyAuth.bind(authMiddlew
 const connectSessionAuth: RequestHandler[] = [authMiddleware.connectSessionAuth.bind(authMiddleware), rateLimiterMiddleware];
 const connectSessionAuthBody: RequestHandler[] = [authMiddleware.connectSessionAuthBody.bind(authMiddleware), rateLimiterMiddleware];
 const connectSessionOrApiAuth: RequestHandler[] = [authMiddleware.connectSessionOrSecretKeyAuth.bind(authMiddleware), rateLimiterMiddleware];
-const adminAuth: RequestHandler[] = [
-    authMiddleware.secretKeyAuth.bind(authMiddleware),
-    authMiddleware.adminKeyAuth.bind(authMiddleware),
-    rateLimiterMiddleware
-];
 
 const connectSessionOrPublicAuth: RequestHandler[] = [
     authMiddleware.connectSessionOrPublicKeyAuth.bind(authMiddleware),
@@ -154,10 +149,6 @@ publicAPI.route('/unauth/:providerConfigKey').post(connectSessionOrPublicAuth, p
 
 publicAPI.route('/webhook/:environmentUuid/:providerConfigKey').post(postWebhook);
 
-// API Admin routes
-publicAPI.use('/admin', jsonContentTypeMiddleware);
-publicAPI.route('/admin/flow/deploy/pre-built').post(adminAuth, flowController.adminDeployPrivateFlow.bind(flowController));
-
 // API routes (Secret key auth).
 publicAPI.use('/provider', jsonContentTypeMiddleware);
 // @deprecated use /providers
@@ -166,8 +157,8 @@ publicAPI.route('/provider').get(apiAuth, providerController.listProviders.bind(
 publicAPI.route('/provider/:provider').get(apiAuth, providerController.getProvider.bind(providerController));
 
 publicAPI.use('/providers', jsonContentTypeMiddleware);
-publicAPI.route('/providers').get(connectSessionOrApiAuth, getPublicProviders);
-publicAPI.route('/providers/:provider').get(connectSessionOrApiAuth, getPublicProvider);
+publicAPI.route('/providers').get(connectSessionOrApiAuth, acceptLanguageMiddleware, getPublicProviders);
+publicAPI.route('/providers/:provider').get(connectSessionOrApiAuth, acceptLanguageMiddleware, getPublicProvider);
 
 // @deprecated
 publicAPI.use('/config', jsonContentTypeMiddleware);

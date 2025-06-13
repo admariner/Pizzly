@@ -62,6 +62,7 @@ export interface BaseProvider {
     };
     authorization_url?: string;
     authorization_url_skip_encode?: string[];
+    authorization_url_skip_empty?: boolean;
     access_token_url?: string;
     authorization_params?: Record<string, string>;
     authorization_code_param_in_callback?: string;
@@ -79,6 +80,7 @@ export interface BaseProvider {
     webhook_routing_script?: string;
     webhook_user_defined_secret?: boolean;
     post_connection_script?: string;
+    pre_connection_deletion_script?: string;
     credentials_verification_script?: string;
     categories?: string[];
     connection_configuration?: string[];
