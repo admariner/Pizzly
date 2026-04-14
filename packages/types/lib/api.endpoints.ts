@@ -11,7 +11,7 @@ import type {
     PostSignup,
     PutResetPassword
 } from './account/api.js';
-import type { GetAsyncActionResult, GetPublicV1, PostPublicTriggerAction } from './action/api.js';
+import type { GetAsyncActionResult, GetPublicV1, PostInternalTriggerFunction, PostPublicTriggerAction } from './action/api.js';
 import type { PostImpersonate } from './admin/http.api.js';
 import type { EndpointMethod } from './api.js';
 import type {
@@ -192,7 +192,8 @@ export type PrivateApiEndpoints =
     | GetConnectUISettings
     | PutConnectUISettings
     | GetProviders
-    | GetProvider;
+    | GetProvider
+    | PostInternalTriggerFunction;
 
 export type APIEndpoints = PrivateApiEndpoints | PublicApiEndpoints;
 
