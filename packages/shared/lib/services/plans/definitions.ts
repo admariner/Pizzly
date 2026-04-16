@@ -29,6 +29,7 @@ export const freePlan: PlanDefinition = {
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
         can_disable_connect_ui_watermark: false,
+        remote_functions: false,
         sync_function_runtime: 'lambda',
         action_function_runtime: 'lambda',
         webhook_function_runtime: 'lambda',
@@ -71,7 +72,8 @@ export const starterV1Plan: PlanDefinition = {
         has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
-        can_disable_connect_ui_watermark: false
+        can_disable_connect_ui_watermark: false,
+        remote_functions: false
     }
 };
 
@@ -110,7 +112,8 @@ export const growthV1Plan: PlanDefinition = {
         has_rbac: true,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
-        can_disable_connect_ui_watermark: true
+        can_disable_connect_ui_watermark: true,
+        remote_functions: false
     }
 };
 
@@ -176,7 +179,8 @@ export const enterprisePlan: PlanDefinition = {
         has_rbac: true,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
-        can_disable_connect_ui_watermark: true
+        can_disable_connect_ui_watermark: true,
+        remote_functions: false
     }
 };
 
@@ -215,7 +219,8 @@ export const starterLegacyPlan: PlanDefinition = {
         has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
-        can_disable_connect_ui_watermark: false
+        can_disable_connect_ui_watermark: false,
+        remote_functions: false
     }
 };
 
@@ -253,7 +258,8 @@ export const scaleLegacyPlan: PlanDefinition = {
         has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
-        can_disable_connect_ui_watermark: false
+        can_disable_connect_ui_watermark: false,
+        remote_functions: false
     }
 };
 
@@ -291,7 +297,8 @@ export const growthLegacyPlan: PlanDefinition = {
         has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
-        can_disable_connect_ui_watermark: true
+        can_disable_connect_ui_watermark: true,
+        remote_functions: false
     }
 };
 
