@@ -115,6 +115,7 @@ function makePlan({ code, flagOverrides }: { code: DBPlan['name']; flagOverrides
         webhook_forwards_max: null,
         function_logs_max: null,
         sync_function_runtime: 'runner',
+        sync_lambda_checkpoint_required: true,
         action_function_runtime: 'runner',
         webhook_function_runtime: 'runner',
         on_event_function_runtime: 'runner',
