@@ -25,6 +25,7 @@ export const freePlan: PlanDefinition = {
         monthly_active_records_max: 5000,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
         can_disable_connect_ui_watermark: false,
@@ -67,6 +68,7 @@ export const starterV1Plan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: false,
         has_webhooks_forward: false,
+        has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
         can_disable_connect_ui_watermark: false
@@ -105,6 +107,7 @@ export const growthV1Plan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: true,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
         can_disable_connect_ui_watermark: true
@@ -170,6 +173,7 @@ export const enterprisePlan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: true,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
         can_disable_connect_ui_watermark: true
@@ -208,6 +212,7 @@ export const starterLegacyPlan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
         can_disable_connect_ui_watermark: false
@@ -245,6 +250,7 @@ export const scaleLegacyPlan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: false,
         can_disable_connect_ui_watermark: false
@@ -282,6 +288,7 @@ export const growthLegacyPlan: PlanDefinition = {
         trial_expired: null,
         has_webhooks_script: true,
         has_webhooks_forward: true,
+        has_rbac: false,
         can_override_docs_connect_url: false,
         can_customize_connect_ui_theme: true,
         can_disable_connect_ui_watermark: true
