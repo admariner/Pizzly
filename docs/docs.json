@@ -1143,6 +1143,7 @@
               "api-integrations/vercel-mcp",
               "integrations/all/vimeo",
               "integrations/all/vimeo-basic",
+              "api-integrations/vtex",
               "integrations/all/precisefp",
               "integrations/all/wakatime",
               "integrations/all/wave-accounting",
