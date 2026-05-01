@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => {
         triggerWebhook: vi.fn(),
         increment: vi.fn(),
         report: vi.fn(),
+        metricsIncrement: vi.fn(),
         getConnectionsByEnvironmentAndConfig: vi.fn(),
         getSyncConfigsByConfigIdForWebhook: vi.fn()
     };
