@@ -16,11 +16,22 @@
 | `list-projects-for-workspace` | List projects in a workspace. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/list-projects-for-workspace.ts) |
 | `update-project` | Update mutable fields on a project. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/update-project.ts) |
 
+### Sections
+
+| Function name | Description | Type | Source code |
+| - | - | - | - |
+| `create-section` | Create a section in a project. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/create-section.ts) |
+| `delete-section` | Delete a section by gid. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/delete-section.ts) |
+| `get-section` | Fetch a single section by gid. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/get-section.ts) |
+| `list-sections-for-project` | List sections in a project. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/list-sections-for-project.ts) |
+| `update-section` | Update mutable fields on a section. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/update-section.ts) |
+
 ### Stories
 
 | Function name | Description | Type | Source code |
 | - | - | - | - |
 | `create-story-on-task` | Create a comment or story entry on a task. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/create-story-on-task.ts) |
+| `delete-story` | Delete a story or comment by gid. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/delete-story.ts) |
 | `list-stories-for-task` | List stories and comments on a task. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/list-stories-for-task.ts) |
 
 ### Tags
@@ -28,6 +39,7 @@
 | Function name | Description | Type | Source code |
 | - | - | - | - |
 | `create-tag` | Create a tag in a workspace. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/create-tag.ts) |
+| `delete-tag` | Delete a tag by gid. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/delete-tag.ts) |
 | `get-tag` | Fetch a single tag by gid. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/get-tag.ts) |
 | `list-tags-for-workspace` | List tags in a workspace. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/list-tags-for-workspace.ts) |
 | `update-tag` | Update mutable fields on a tag. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/update-tag.ts) |
@@ -47,6 +59,7 @@
 | `list-tasks-for-section` | List tasks in a project section. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/list-tasks-for-section.ts) |
 | `remove-project-from-task` | Remove a task from a project | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/remove-project-from-task.ts) |
 | `remove-tag-from-task` | Remove a tag from a task. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/remove-tag-from-task.ts) |
+| `search-tasks-in-workspace` | Search tasks in a workspace with filters. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/search-tasks-in-workspace.ts) |
 | `update-task` | Update mutable fields on a task. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/actions/update-task.ts) |
 
 ### Teams
@@ -77,6 +90,7 @@
 | Function name | Description | Type | Source code |
 | - | - | - | - |
 | `projects` | Sync projects for workspaces or teams in scope. | [Sync](/implementation-guides/use-cases/syncs/implement-a-sync) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/syncs/projects.ts) |
+| `sections` | Sync sections for projects in scope | [Sync](/implementation-guides/use-cases/syncs/implement-a-sync) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/syncs/sections.ts) |
 | `subtasks` | Sync subtasks for parent tasks in scope. | [Sync](/implementation-guides/use-cases/syncs/implement-a-sync) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/syncs/subtasks.ts) |
 | `tags` | Sync workspace tags. | [Sync](/implementation-guides/use-cases/syncs/implement-a-sync) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/syncs/tags.ts) |
 | `tasks` | Sync tasks for projects, sections, or workspace search scopes. | [Sync](/implementation-guides/use-cases/syncs/implement-a-sync) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/asana/syncs/tasks.ts) |
