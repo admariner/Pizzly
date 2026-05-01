@@ -24,6 +24,13 @@
 | `get-filter` | Retrieve a mailbox filter by filter ID. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-filter.ts) |
 | `list-filters` | List mailbox filters configured for the authenticated user | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/list-filters.ts) |
 
+### Forwarding Addresses
+
+| Function name | Description | Type | Source code |
+| - | - | - | - |
+| `delete-forwarding-address` | Delete a forwarding address from Gmail settings. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/delete-forwarding-address.ts) |
+| `get-forwarding-address` | Retrieve a forwarding address configured for the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-forwarding-address.ts) |
+
 ### History
 
 | Function name | Description | Type | Source code |
@@ -64,6 +71,7 @@
 
 | Function name | Description | Type | Source code |
 | - | - | - | - |
+| `delete-send-as-alias` | Delete a custom send-as alias from the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/delete-send-as-alias.ts) |
 | `list-send-as-aliases` | List send-as aliases available for the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/list-send-as-aliases.ts) |
 | `update-send-as-smtp-msa` | Update the SMTP MSA settings for a send-as alias. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-send-as-smtp-msa.ts) |
 
@@ -71,6 +79,7 @@
 
 | Function name | Description | Type | Source code |
 | - | - | - | - |
+| `create-send-as-alias` | Create a custom send-as alias for the mailbox | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/create-send-as-alias.ts) |
 | `get-auto-forwarding-settings` | Retrieve the mailbox auto-forwarding configuration. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-auto-forwarding-settings.ts) |
 | `get-imap-settings` | Retrieve IMAP settings for the mailbox | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-imap-settings.ts) |
 | `get-language-settings` | Retrieve Gmail language settings for the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-language-settings.ts) |
@@ -78,10 +87,12 @@
 | `get-send-as-alias` | Retrieve a configured send-as alias | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-send-as-alias.ts) |
 | `get-vacation-settings` | Retrieve the mailbox vacation responder settings. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/get-vacation-settings.ts) |
 | `list-forwarding-addresses` | List forwarding addresses configured for the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/list-forwarding-addresses.ts) |
+| `update-auto-forwarding-settings` | Update Gmail auto-forwarding behavior and disposition | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-auto-forwarding-settings.ts) |
 | `update-imap-settings` | Update IMAP enablement and visibility settings. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-imap-settings.ts) |
 | `update-language-settings` | Update the mailbox display language | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-language-settings.ts) |
 | `update-pop-settings` | Update POP access settings for the mailbox | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-pop-settings.ts) |
 | `update-vacation-settings` | Update the mailbox vacation responder configuration. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/update-vacation-settings.ts) |
+| `verify-send-as-alias` | Trigger verification for a custom send-as alias | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/verify-send-as-alias.ts) |
 
 ### Threads
 
@@ -98,6 +109,7 @@
 | Function name | Description | Type | Source code |
 | - | - | - | - |
 | `stop-watch` | Stop Gmail push notification watch state for the mailbox. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/stop-watch.ts) |
+| `watch-mailbox` | Start Gmail push notifications for mailbox changes. | [Action](/implementation-guides/use-cases/actions/implement-an-action) | [🔗 Github](https://github.com/NangoHQ/integration-templates/blob/main/integrations/google-mail/actions/watch-mailbox.ts) |
 
 ### Others
 
