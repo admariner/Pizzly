@@ -9372,6 +9372,39 @@ jazzhr:
             description: Your JazzHR API Key
             doc_section: '#step-1-finding-your-api-key'
 
+jiminny:
+    display_name: Jiminny
+    categories:
+        - productivity
+        - communication
+    auth_mode: API_KEY
+    proxy:
+        base_url: https://app.jiminny.${connectionConfig.region}/customer/api
+        headers:
+            authorization: Bearer ${apiKey}
+        verification:
+            method: GET
+            endpoints:
+                - /v1/me
+    docs: https://nango.dev/docs/api-integrations/jiminny
+    docs_connect: https://nango.dev/docs/api-integrations/jiminny/connect
+    connection_config:
+        region:
+            type: string
+            title: Region
+            description: The region your Jiminny account is hosted in.
+            pattern: '^(eu|com)$'
+            example: eu
+            doc_section: '#step-1-find-your-region'
+    credentials:
+        apiKey:
+            type: string
+            title: API Key
+            description: Your Jiminny API key.
+            example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c
+            pattern: '^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$'
+            doc_section: '#step-2-generate-an-api-key'
+
 jira:
     display_name: Jira (OAuth)
     categories:
