@@ -642,6 +642,7 @@
             "pages": [
               "getting-started/intro-to-nango",
               "getting-started/quickstart",
+              "getting-started/coding-agent-setup",
               {
                 "group": "Use cases",
                 "expanded": false,
