@@ -5357,7 +5357,7 @@ crunchbase:
         verification:
             method: GET
             endpoints:
-                - /v4/data/entities/organizations/crunchbase
+                - /v4/data/autocompletes?query=instantly&limit=1
     docs: https://nango.dev/docs/api-integrations/crunchbase
     docs_connect: https://nango.dev/docs/api-integrations/crunchbase/connect
     credentials:
@@ -5366,6 +5366,8 @@ crunchbase:
             title: API Key
             description: Your Crunchbase API key.
             doc_section: '#step-1-get-your-api-key'
+            pattern: '^[a-zA-Z0-9]{32}$'
+            example: 0f9c************************5336
 
 dixa:
     display_name: Dixa
@@ -7009,6 +7011,47 @@ freshteam:
             doc_section: '#step-2-finding-your-api-key'
             example: 'XtoF94LMNyKPbd5AvR1QJh'
             pattern: '^[a-zA-Z0-9_!@#$%^&*()\\-+=]+$'
+
+freshworks:
+    display_name: Freshworks
+    categories:
+        - crm
+        - support
+    auth_mode: OAUTH2
+    authorization_url: https://${connectionConfig.hostname}/org/oauth/v2/authorize
+    token_url: https://${connectionConfig.hostname}/org/oauth/v2/token
+    disable_pkce: true
+    token_request_auth_method: basic
+    authorization_params:
+        response_type: code
+    token_params:
+        grant_type: authorization_code
+    refresh_params:
+        grant_type: refresh_token
+    proxy:
+        base_url: https://${connectionConfig.bundleAlias}
+        retry:
+            after:
+                - 'retry-after'
+    docs: https://nango.dev/docs/api-integrations/freshworks
+    docs_connect: https://nango.dev/docs/api-integrations/freshworks/connect
+    connection_config:
+        hostname:
+            type: string
+            title: Freshworks Hostname
+            description: The hostname of your Freshworks account.
+            format: hostname
+            example: acme.myfreshworks.com
+            prefix: https://
+            doc_section: '#step-1-finding-your-freshworks-hostname'
+        bundleAlias:
+            type: string
+            title: API Hostname
+            description: The hostname of your Freshworks product used for API calls.
+            format: hostname
+            example: acme.freshservice.com
+            prefix: https://
+            doc_section: '#step-2-finding-your-api-hostname'
 
 front:
     display_name: Front
@@ -15286,10 +15329,6 @@ rocketreach:
         retry:
             at:
                 - 'retry-after'
-        verification:
-            method: GET
-            endpoints:
-                - /api/v2/account/
     docs: https://nango.dev/docs/api-integrations/rocketreach
     docs_connect: https://nango.dev/docs/api-integrations/rocketreach/connect
     credentials:
@@ -17572,6 +17611,8 @@ store-leads:
             title: API Key
             description: Your Store Leads API key.
             doc_section: '#step-1-generate-your-api-key'
+            pattern: '^[a-zA-Z0-9]{8}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{8}$'
+            example: a174****-****-****-****-****c6ee
 
 strava:
     display_name: Strava (Mobile)
